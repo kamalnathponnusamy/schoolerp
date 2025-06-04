@@ -1,18 +1,13 @@
-'use client'
+"use client"
 
 import type React from "react"
-import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
 import { Sidebar } from "@/components/sidebar"
 import { usePathname } from "next/navigation"
+import { metadata } from "./metadata"
 
 const inter = Inter({ subsets: ["latin"] })
-
-export const metadata: Metadata = {
-  title: "School ERP System",
-  description: "Complete school management system"
-}
 
 export default function RootLayout({
   children,
@@ -24,6 +19,10 @@ export default function RootLayout({
 
   return (
     <html lang="en">
+      <head>
+        <title>{metadata.title}</title>
+        <meta name="description" content={metadata.description} />
+      </head>
       <body className={inter.className}>
         <div className="flex h-screen bg-gray-50">
           {showSidebar && <Sidebar />}
