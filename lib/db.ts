@@ -1,10 +1,27 @@
-import { neon } from "@neondatabase/serverless"
+import mysql from 'mysql2/promise'
 
 if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL environment variable is not set")
 }
 
-export const sql = neon(process.env.DATABASE_URL)
+// Create connection pool for MySQL
+const pool = mysql.createPool({
+  uri: process.env.DATABASE_URL,
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
+})
+
+// Helper function to execute SQL queries
+export async function sql(query: string, params: any[] = []) {
+  try {
+    const [rows] = await pool.execute(query, params)
+    return rows
+  } catch (error) {
+    console.error('Database query error:', error)
+    throw error
+  }
+}
 
 // Type definitions for the database schema
 export interface User {
