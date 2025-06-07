@@ -1,57 +1,71 @@
-import { neon } from "@neondatabase/serverless"
-import { NextResponse } from "next/server"
+import { type NextRequest, NextResponse } from "next/server";
+import pool from "@/lib/mysql";
 
 export async function GET() {
   try {
-    const sql = neon(process.env.DATABASE_URL!)
-
-    const teachers = await sql`
+    const [teachers] = await pool.query(`
       SELECT 
-        id,
-        teacher_id,
-        name,
-        subject,
-        phone,
-        email,
-        qualification,
-        experience_years,
-        salary,
-        status,
-        assigned_classes
-      FROM teachers 
-      ORDER BY name ASC
-    `
+        t.id,
+        t.teacher_id,
+        u.full_name,
+        u.email,
+        u.phone,
+        t.subject,
+        t.qualification,
+        t.experience_years,
+        t.salary,
+        t.status
+      FROM teachers t
+      JOIN users u ON t.user_id = u.id
+      ORDER BY u.full_name
+    `);
 
-    // Ensure we always return an array
-    return NextResponse.json(Array.isArray(teachers) ? teachers : [])
+    return NextResponse.json({ teachers });
   } catch (error) {
-    console.error("Error fetching teachers:", error)
-    // Return empty array on error instead of error response
-    return NextResponse.json([])
+    console.error("Error fetching teachers:", error);
+    return NextResponse.json({ error: "Failed to fetch teachers" }, { status: 500 });
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const sql = neon(process.env.DATABASE_URL!)
+    const body = await request.json();
+    const {
+      teacher_id,
+      full_name,
+      email,
+      phone,
+      subject,
+      qualification,
+      experience_years,
+      salary,
+    } = body;
 
-    const { teacher_id, name, subject, phone, email, qualification, experience_years, salary } = body
+    const username = teacher_id.toLowerCase();
 
-    // Validate required fields
-    if (!teacher_id || !name || !subject || !phone || !email) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
-    }
+    const [userResult]: any = await pool.query(
+      `
+      INSERT INTO users (
+        username, email, password_hash, role, full_name, phone
+      ) VALUES (?, ?, ?, 'teacher', ?, ?)
+    `,
+      [username, email, '$2b$10$defaulthash', full_name, phone]
+    );
 
-    const result = await sql`
-      INSERT INTO teachers (teacher_id, name, subject, phone, email, qualification, experience_years, salary, status, assigned_classes)
-      VALUES (${teacher_id}, ${name}, ${subject}, ${phone}, ${email}, ${qualification}, ${experience_years || 0}, ${salary || 0}, 'active', 'Not Assigned')
-      RETURNING *
-    `
+    const userId = userResult.insertId;
 
-    return NextResponse.json(result[0])
+    const [teacherResult]: any = await pool.query(
+      `
+      INSERT INTO teachers (
+        teacher_id, user_id, subject, qualification, experience_years, salary, status
+      ) VALUES (?, ?, ?, ?, ?, ?, 'active')
+    `,
+      [teacher_id, userId, subject, qualification, experience_years, salary]
+    );
+
+    return NextResponse.json({ message: "Teacher added successfully", id: teacherResult.insertId });
   } catch (error) {
-    console.error("Error creating teacher:", error)
-    return NextResponse.json({ error: "Failed to create teacher" }, { status: 500 })
+    console.error("Error creating teacher:", error);
+    return NextResponse.json({ error: "Failed to create teacher" }, { status: 500 });
   }
 }
