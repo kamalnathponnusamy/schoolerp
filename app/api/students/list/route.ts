@@ -1,10 +1,9 @@
-import { NextResponse } from "next/server";
-import { sql } from "@/lib/mysql"; // ✅ fixed import
+import { NextResponse } from "next/server"
+import { sql } from "@/lib/db"
 
 export async function GET() {
   try {
-    const students = await sql(
-      `
+    const students = await sql`
       SELECT 
         s.id, s.student_id, s.admission_number, s.admission_date,
         s.father_name, s.mother_name, s.guardian_phone, s.blood_group,
@@ -19,14 +18,10 @@ export async function GET() {
       WHERE s.status = 'active'
       ORDER BY u.full_name
     `
-    );
 
-    return NextResponse.json({ students });
+    return NextResponse.json({ students })
   } catch (error) {
-    console.error("Error fetching students:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch students" },
-      { status: 500 }
-    );
+    console.error("Error fetching students:", error)
+    return NextResponse.json({ error: "Failed to fetch students" }, { status: 500 })
   }
 }

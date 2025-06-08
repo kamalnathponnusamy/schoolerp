@@ -1,0 +1,167 @@
+import mysql from 'mysql2/promise'
+
+if (!process.env.DATABASE_URL) {
+  throw new Error("DATABASE_URL environment variable is not set")
+}
+
+// Create connection pool for MySQL
+const pool = mysql.createPool({
+  uri: process.env.DATABASE_URL,
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
+})
+
+// Helper function to execute SQL queries
+export async function sql(query: string, params: any[] = []) {
+  try {
+    const [rows] = await pool.execute(query, params)
+    return rows
+  } catch (error) {
+    console.error('Database query error:', error)
+    throw error
+  }
+}
+
+// Type definitions for the database schema
+export interface User {
+  id: number
+  username: string
+  email: string
+  password_hash: string
+  role: "admin" | "teacher" | "student"
+  full_name: string
+  phone?: string
+  date_of_birth?: string
+  address?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface Student {
+  id: number
+  student_id: string
+  user_id: number
+  class_id: number
+  admission_number: string
+  admission_date: string
+  father_name?: string
+  mother_name?: string
+  guardian_phone?: string
+  blood_group?: string
+  transport_opted: boolean
+  transport_route_id?: number
+  fee_structure?: any
+  status: "active" | "inactive" | "graduated"
+  created_at: string
+}
+
+export interface Teacher {
+  id: number
+  teacher_id: string
+  user_id: number
+  name: string
+  subject: string
+  phone: string
+  email: string
+  qualification: string
+  experience_years: number
+  salary: number
+  status: string
+}
+
+export interface Class {
+  id: number
+  class_name: string
+  section: string
+  class_teacher_id?: number
+  academic_year: string
+  created_at: string
+}
+
+export interface Subject {
+  id: number
+  subject_name: string
+  subject_code: string
+  description?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface TransportRoute {
+  id: number
+  route_name: string
+  route_code: string
+  pickup_points: string[]
+  driver_name: string
+  driver_phone: string
+  vehicle_number: string
+  capacity: number
+  monthly_fee: number
+  status: string
+}
+
+export interface Fee {
+  id: number
+  student_id: number
+  academic_year: string
+  term: string
+  tuition_fee: number
+  transport_fee: number
+  lab_fee: number
+  library_fee: number
+  sports_fee: number
+  other_fees: number
+  total_amount: number
+  paid_amount: number
+  due_date: string
+  status: string
+}
+
+export interface Attendance {
+  id: number
+  student_id: number
+  date: string
+  status: "present" | "absent" | "late" | "half_day"
+  marked_by: number
+  remarks?: string
+  created_at: string
+}
+
+export interface Exam {
+  id: number
+  exam_name: string
+  exam_type: string
+  class_id: number
+  subject_id: number
+  exam_date: string
+  start_time: string
+  end_time: string
+  total_marks: number
+  passing_marks: number
+  syllabus?: string
+  status: string
+}
+
+export interface Homework {
+  id: number
+  title: string
+  description: string
+  subject_id: number
+  class_id: number
+  teacher_id: number
+  due_date: string
+  created_at: string
+}
+
+export interface Notification {
+  id: number
+  title: string
+  message: string
+  type: string
+  target_audience: string
+  is_urgent: boolean
+  scheduled_date: string
+  created_by: number
+  created_at: string
+}
