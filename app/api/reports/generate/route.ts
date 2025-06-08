@@ -1,7 +1,36 @@
 import { NextResponse } from "next/server"
-import { neon } from "@neondatabase/serverless"
+import { sql } from "@/lib/db"
 
-const sql = neon(process.env.DATABASE_URL!)
+interface AttendanceReport {
+  date: string
+  class: string
+  present: number
+  absent: number
+  percentage: number
+}
+
+interface FeeReport {
+  student_id: string
+  student_name: string
+  class: string
+  total_amount: number
+  paid_amount: number
+  pending_amount: number
+  due_date: string
+  status: string
+}
+
+interface ExamReport {
+  exam_name: string
+  class: string
+  subject: string
+  total_students: number
+  passed: number
+  failed: number
+  average_score: number
+  highest_score: number
+  lowest_score: number
+}
 
 export async function GET(request: Request) {
   try {
@@ -23,8 +52,8 @@ export async function GET(request: Request) {
     switch (type) {
       case "attendance":
         reportTitle = "Attendance Report"
-        reportData = await sql`
-          SELECT 
+        reportData = await sql<AttendanceReport>(
+          `SELECT 
             a.date,
             CONCAT(c.class_name, ' - ', c.section) as class,
             COUNT(CASE WHEN a.status = 'present' THEN 1 END) as present,
@@ -36,140 +65,78 @@ export async function GET(request: Request) {
           LEFT JOIN students s ON a.student_id = s.id
           LEFT JOIN classes c ON s.class_id = c.id
           WHERE 1=1
-          ${dateFrom ? sql`AND a.date >= ${dateFrom}` : sql``}
-          ${dateTo ? sql`AND a.date <= ${dateTo}` : sql``}
+          ${dateFrom ? 'AND a.date >= ?' : ''}
+          ${dateTo ? 'AND a.date <= ?' : ''}
           GROUP BY a.date, c.class_name, c.section
           ORDER BY a.date DESC
-          LIMIT 100
-        `
+          LIMIT 100`,
+          [dateFrom, dateTo].filter(Boolean)
+        )
         break
 
       case "fees":
         reportTitle = "Fee Collection Report"
-        reportData = await sql`
-          SELECT 
-            CONCAT(u.full_name) as student_name,
+        reportData = await sql<FeeReport>(
+          `SELECT 
+            s.student_id,
+            u.full_name as student_name,
             CONCAT(c.class_name, ' - ', c.section) as class,
-            f.amount,
+            f.total_amount,
+            f.paid_amount,
+            (f.total_amount - f.paid_amount) as pending_amount,
             f.due_date,
-            f.payment_date,
-            f.status,
-            f.payment_method
+            f.status
           FROM fees f
-          LEFT JOIN students s ON f.student_id = s.id
-          LEFT JOIN users u ON s.user_id = u.id
-          LEFT JOIN classes c ON s.class_id = c.id
+          JOIN students s ON f.student_id = s.id
+          JOIN users u ON s.user_id = u.id
+          JOIN classes c ON s.class_id = c.id
           WHERE 1=1
-          ${dateFrom ? sql`AND f.due_date >= ${dateFrom}` : sql``}
-          ${dateTo ? sql`AND f.due_date <= ${dateTo}` : sql``}
-          ORDER BY f.due_date DESC
-          LIMIT 100
-        `
+          ${dateFrom ? 'AND f.due_date >= ?' : ''}
+          ${dateTo ? 'AND f.due_date <= ?' : ''}
+          ${classFilter ? 'AND c.class_name = ?' : ''}
+          ORDER BY f.due_date DESC`,
+          [dateFrom, dateTo, classFilter].filter(Boolean)
+        )
         break
 
-      case "academic":
-        reportTitle = "Academic Performance Report"
-        reportData = await sql`
-          SELECT 
-            CONCAT(u.full_name) as student_name,
-            CONCAT(c.class_name, ' - ', c.section) as class,
-            s.subject_name,
+      case "exams":
+        reportTitle = "Exam Results Report"
+        reportData = await sql<ExamReport>(
+          `SELECT 
             e.exam_name,
-            er.marks_obtained,
-            e.total_marks,
-            ROUND((er.marks_obtained * 100.0 / e.total_marks), 2) as percentage
-          FROM exam_results er
-          LEFT JOIN students st ON er.student_id = st.id
-          LEFT JOIN users u ON st.user_id = u.id
-          LEFT JOIN classes c ON st.class_id = c.id
-          LEFT JOIN exams e ON er.exam_id = e.id
-          LEFT JOIN subjects s ON e.subject_id = s.id
-          WHERE er.marks_obtained IS NOT NULL
-          ORDER BY er.created_at DESC
-          LIMIT 100
-        `
-        break
-
-      case "transport":
-        reportTitle = "Transport Usage Report"
-        reportData = await sql`
-          SELECT 
-            tr.route_name,
-            tr.vehicle_number,
-            tr.driver_name,
-            tr.capacity,
-            COUNT(s.id) as students_count,
-            tr.monthly_fee,
-            (COUNT(s.id) * tr.monthly_fee) as monthly_revenue
-          FROM transport_routes tr
-          LEFT JOIN students s ON s.transport_route_id = tr.id
-          GROUP BY tr.id, tr.route_name, tr.vehicle_number, tr.driver_name, tr.capacity, tr.monthly_fee
-          ORDER BY students_count DESC
-        `
-        break
-
-      case "inventory":
-        reportTitle = "Inventory Report"
-        reportData = await sql`
-          SELECT 
-            i.item_code,
-            i.item_name,
-            i.category,
-            i.available_quantity,
-            i.issued_quantity,
-            i.unit_price,
-            i.supplier,
-            i.min_stock_level,
-            CASE 
-              WHEN i.available_quantity <= i.min_stock_level THEN 'Low Stock'
-              WHEN i.available_quantity = 0 THEN 'Out of Stock'
-              ELSE 'In Stock'
-            END as status
-          FROM inventory i
-          ORDER BY i.category, i.item_name
-        `
-        break
-
-      case "demographics":
-        reportTitle = "Student Demographics Report"
-        reportData = await sql`
-          SELECT 
             CONCAT(c.class_name, ' - ', c.section) as class,
-            COUNT(CASE WHEN s.gender = 'male' THEN 1 END) as boys,
-            COUNT(CASE WHEN s.gender = 'female' THEN 1 END) as girls,
-            COUNT(*) as total_students,
-            AVG(EXTRACT(YEAR FROM AGE(s.date_of_birth))) as average_age
-          FROM students s
-          LEFT JOIN classes c ON s.class_id = c.id
-          GROUP BY c.class_name, c.section
-          ORDER BY c.class_name, c.section
-        `
+            s.subject_name as subject,
+            COUNT(DISTINCT er.student_id) as total_students,
+            COUNT(CASE WHEN er.marks_obtained >= e.passing_marks THEN 1 END) as passed,
+            COUNT(CASE WHEN er.marks_obtained < e.passing_marks THEN 1 END) as failed,
+            ROUND(AVG(er.marks_obtained), 2) as average_score,
+            MAX(er.marks_obtained) as highest_score,
+            MIN(er.marks_obtained) as lowest_score
+          FROM exams e
+          JOIN classes c ON e.class_id = c.id
+          JOIN subjects s ON e.subject_id = s.id
+          LEFT JOIN exam_results er ON e.id = er.exam_id
+          WHERE 1=1
+          ${dateFrom ? 'AND e.exam_date >= ?' : ''}
+          ${dateTo ? 'AND e.exam_date <= ?' : ''}
+          ${classFilter ? 'AND c.class_name = ?' : ''}
+          GROUP BY e.id, c.class_name, c.section, s.subject_name
+          ORDER BY e.exam_date DESC`,
+          [dateFrom, dateTo, classFilter].filter(Boolean)
+        )
         break
 
       default:
         return NextResponse.json({ error: "Invalid report type" }, { status: 400 })
     }
 
-    // Generate report content
-    const content = generateReportContent(reportTitle, reportData, format, {
-      dateFrom,
-      dateTo,
-      classFilter,
+    return NextResponse.json({
+      title: reportTitle,
+      type,
+      format,
+      data: reportData,
+      generated_at: new Date().toISOString()
     })
-
-    const headers: Record<string, string> = {
-      "Content-Disposition": `attachment; filename="${type}_report_${new Date().toISOString().split("T")[0]}.${format === "pdf" ? "pdf" : "csv"}"`,
-    }
-
-    if (format === "pdf") {
-      headers["Content-Type"] = "application/pdf"
-      // For demo purposes, we'll return a text file that can be opened
-      // In production, you'd use a PDF library like jsPDF or Puppeteer
-      return new NextResponse(content, { headers })
-    } else {
-      headers["Content-Type"] = "text/csv"
-      return new NextResponse(content, { headers })
-    }
   } catch (error) {
     console.error("Error generating report:", error)
     return NextResponse.json({ error: "Failed to generate report" }, { status: 500 })

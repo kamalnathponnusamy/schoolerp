@@ -41,6 +41,7 @@ export default function InventoryPage() {
 
   const [newItem, setNewItem] = useState({
     item_name: "",
+    item_code: "",
     category: "",
     description: "",
     total_quantity: "",
@@ -94,8 +95,14 @@ export default function InventoryPage() {
         return
       }
 
+      // Generate item code from category and name
+      const categoryPrefix = newItem.category.substring(0, 3).toUpperCase()
+      const randomNum = Math.floor(Math.random() * 1000).toString().padStart(3, '0')
+      const itemCode = `${categoryPrefix}${randomNum}`
+
       const itemData = {
         ...newItem,
+        item_code: itemCode,
         total_quantity: Number.parseInt(newItem.total_quantity),
         unit_price: Number.parseFloat(newItem.unit_price),
         min_stock_level: Number.parseInt(newItem.min_stock_level),
@@ -156,6 +163,7 @@ export default function InventoryPage() {
   const resetForm = () => {
     setNewItem({
       item_name: "",
+      item_code: "",
       category: "",
       description: "",
       total_quantity: "",

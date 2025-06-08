@@ -143,8 +143,8 @@ export default function ExamsPage() {
         return
       }
 
-      const totalMarks = Number.parseInt(newExam.total_marks)
-      const passingMarks = Number.parseInt(newExam.passing_marks)
+      const totalMarks = Number(newExam.total_marks)
+      const passingMarks = Number(newExam.passing_marks)
 
       // Validate numeric fields
       if (isNaN(totalMarks) || isNaN(passingMarks) || totalMarks <= 0 || passingMarks <= 0) {
@@ -175,13 +175,23 @@ export default function ExamsPage() {
         return
       }
 
-      const examData = {
+      const examData: Record<string, any> = {
         ...newExam,
-        class_id: Number.parseInt(newExam.class_id),
-        subject_id: Number.parseInt(newExam.subject_id),
+        class_id: Number(newExam.class_id),
+        subject_id: Number(newExam.subject_id),
         total_marks: totalMarks,
         passing_marks: passingMarks,
+        syllabus: newExam.syllabus || null,
       }
+
+      // Remove any undefined values
+      Object.keys(examData).forEach(key => {
+        if (examData[key] === undefined) {
+          examData[key] = null;
+        }
+      });
+
+      console.log('Sending exam data:', JSON.stringify(examData, null, 2))
 
       const response = await fetch("/api/exams", {
         method: "POST",
@@ -200,6 +210,7 @@ export default function ExamsPage() {
         resetForm()
         fetchExams()
       } else {
+        console.error('Exam creation failed:', result)
         toast({
           title: "Error",
           description: result.error || "Failed to schedule exam",
@@ -337,11 +348,10 @@ export default function ExamsPage() {
                           <SelectValue placeholder="Select exam type" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="term">Term Exam</SelectItem>
-                          <SelectItem value="unit">Unit Test</SelectItem>
-                          <SelectItem value="monthly">Monthly Test</SelectItem>
-                          <SelectItem value="practical">Practical Exam</SelectItem>
-                          <SelectItem value="final">Final Exam</SelectItem>
+                          <SelectItem value="unit_test">Unit Test</SelectItem>
+                          <SelectItem value="quarterly">Quarterly Exam</SelectItem>
+                          <SelectItem value="half_yearly">Half Yearly Exam</SelectItem>
+                          <SelectItem value="annual">Annual Exam</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>

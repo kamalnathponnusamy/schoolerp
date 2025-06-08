@@ -1,25 +1,87 @@
-import mysql from 'mysql2/promise'
+import mysql from "mysql2/promise";
 
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL environment variable is not set")
+// Validate required environment variables
+const requiredEnvVars = ["DB_HOST", "DB_USER", "DB_PASSWORD", "DB_NAME", "DB_PORT"];
+const missingEnvVars = requiredEnvVars.filter((envVar) => !process.env[envVar]);
+
+if (missingEnvVars.length > 0) {
+  throw new Error(`Missing required environment variables: ${missingEnvVars.join(", ")}`);
 }
 
-// Create connection pool for MySQL
+// Create MySQL connection pool with better error handling and connection management
 const pool = mysql.createPool({
-  uri: process.env.DATABASE_URL,
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  port: Number(process.env.DB_PORT),
   waitForConnections: true,
   connectionLimit: 10,
-  queueLimit: 0
-})
+  queueLimit: 0,
+  namedPlaceholders: true,
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 10000,
+});
 
-// Helper function to execute SQL queries
-export async function sql(query: string, params: any[] = []) {
+// Test the connection
+pool.getConnection()
+  .then(connection => {
+    console.log('Database connection established successfully');
+    connection.release();
+  })
+  .catch(err => {
+    console.error('Error connecting to the database:', err);
+    process.exit(1);
+  });
+
+// Handle pool errors
+pool.on('connection', (connection) => {
+  connection.on('error', (err) => {
+    console.error('Unexpected error on idle connection', err);
+    process.exit(-1);
+  });
+});
+
+export default pool;
+
+// Helper function to execute SQL queries with proper typing and connection handling
+export async function sql<T = any>(query: string | { sql: string; values?: any[] }, params?: any[] | Record<string, any>): Promise<T[]> {
+  let connection;
   try {
-    const [rows] = await pool.execute(query, params)
-    return rows
+    connection = await pool.getConnection();
+    
+    // Handle different query formats
+    let sqlQuery: string;
+    let queryParams: any[] | undefined;
+
+    if (typeof query === 'string') {
+      sqlQuery = query;
+      queryParams = Array.isArray(params) ? params : undefined;
+    } else {
+      sqlQuery = query.sql;
+      queryParams = query.values;
+    }
+
+    // Validate query and parameters
+    if (!sqlQuery) {
+      throw new Error("SQL query cannot be empty");
+    }
+
+    // Convert undefined values to null in parameters
+    if (queryParams) {
+      queryParams = queryParams.map(param => param === undefined ? null : param);
+    }
+
+    // Execute query with proper parameter handling
+    const [rows] = await connection.execute(sqlQuery, queryParams || []);
+    return rows as T[];
   } catch (error) {
-    console.error('Database query error:', error)
-    throw error
+    console.error('Database query error:', error);
+    throw error;
+  } finally {
+    if (connection) {
+      connection.release();
+    }
   }
 }
 

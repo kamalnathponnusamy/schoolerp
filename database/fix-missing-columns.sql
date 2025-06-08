@@ -31,6 +31,24 @@ BEGIN
                    WHERE table_name = 'exams' AND column_name = 'end_time') THEN
         ALTER TABLE exams ADD COLUMN end_time TIME;
     END IF;
+
+    -- Add passing_marks column if it doesn't exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'exams' AND column_name = 'passing_marks') THEN
+        ALTER TABLE exams ADD COLUMN passing_marks INTEGER;
+    END IF;
+
+    -- Add syllabus column if it doesn't exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'exams' AND column_name = 'syllabus') THEN
+        ALTER TABLE exams ADD COLUMN syllabus TEXT;
+    END IF;
+
+    -- Add status column if it doesn't exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'exams' AND column_name = 'status') THEN
+        ALTER TABLE exams ADD COLUMN status VARCHAR(20) DEFAULT 'scheduled';
+    END IF;
 END $$;
 
 -- Create timetable table if it doesn't exist

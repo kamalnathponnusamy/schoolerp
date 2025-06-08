@@ -1,12 +1,24 @@
-import { neon } from "@neondatabase/serverless"
 import { NextResponse } from "next/server"
+import { sql } from "@/lib/db"
+
+interface Teacher {
+  id: number
+  teacher_id: string
+  name: string
+  subject: string
+  phone: string
+  email: string
+  qualification: string
+  experience_years: number
+  salary: number
+  status: string
+  assigned_classes: string | null
+}
 
 export async function GET() {
   try {
-    const sql = neon(process.env.DATABASE_URL!)
-
-    const teachers = await sql`
-      SELECT 
+    const teachers = await sql<Teacher>(
+      `SELECT 
         id,
         teacher_id,
         name,
@@ -19,8 +31,8 @@ export async function GET() {
         status,
         assigned_classes
       FROM teachers 
-      ORDER BY name ASC
-    `
+      ORDER BY name ASC`
+    )
 
     // Ensure we always return an array
     return NextResponse.json(Array.isArray(teachers) ? teachers : [])

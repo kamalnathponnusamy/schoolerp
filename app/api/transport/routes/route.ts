@@ -1,50 +1,78 @@
-import { sql } from "@/lib/db"
 import { NextResponse } from "next/server"
+import { sql } from "@/lib/db"
+
+interface TransportRoute {
+  id: number
+  route_name: string
+  route_code: string
+  pickup_points: string[]
+  monthly_fee: number
+  driver_name: string | null
+  driver_phone: string | null
+  vehicle_number: string | null
+  capacity: number | null
+  created_at: string
+}
 
 export async function GET() {
   try {
-    const routes = await sql(`
+    const routes = await sql<TransportRoute>(`
       SELECT 
-        tr.id,
-        tr.route_name,
-        tr.route_code,
-        tr.driver_name,
-        tr.driver_phone,
-        tr.vehicle_number,
-        tr.capacity,
-        tr.pickup_points,
-        tr.monthly_fee,
-        COUNT(s.id) as student_count
-      FROM transport_routes tr
-      LEFT JOIN students s ON tr.id = s.transport_route_id AND s.transport_opted = true
-      GROUP BY tr.id, tr.route_name, tr.route_code, tr.driver_name, tr.driver_phone, 
-               tr.vehicle_number, tr.capacity, tr.pickup_points, tr.monthly_fee
-      ORDER BY tr.route_name
+        id, route_name, route_code, pickup_points,
+        driver_name, driver_phone, vehicle_number,
+        capacity, monthly_fee, created_at
+      FROM transport_routes
+      ORDER BY route_name
     `)
 
     return NextResponse.json(routes)
   } catch (error) {
     console.error("Error fetching transport routes:", error)
-    return NextResponse.json({ error: "Failed to fetch transport routes" }, { status: 500 })
+    return NextResponse.json(
+      { error: "Failed to fetch transport routes" },
+      { status: 500 }
+    )
   }
 }
 
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { route_name, route_code, pickup_points, driver_name, driver_phone, vehicle_number, capacity, monthly_fee } =
-      body
+    const {
+      route_name,
+      route_code,
+      pickup_points,
+      monthly_fee,
+      driver_name,
+      driver_phone,
+      vehicle_number,
+      capacity
+    } = body
 
     const result = await sql(`
       INSERT INTO transport_routes (
-        route_name, route_code, pickup_points, driver_name, 
-        driver_phone, vehicle_number, capacity, monthly_fee
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `, [route_name, route_code, pickup_points, driver_name, driver_phone, vehicle_number, capacity, monthly_fee])
+        route_name, route_code, pickup_points,
+        monthly_fee, driver_name, driver_phone,
+        vehicle_number, capacity
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
+      route_name,
+      route_code,
+      pickup_points,
+      monthly_fee,
+      driver_name || null,
+      driver_phone || null,
+      vehicle_number || null,
+      capacity || null
+    ])
 
-    return NextResponse.json(result)
+    return NextResponse.json({ message: "Transport route created successfully" })
   } catch (error) {
     console.error("Error creating transport route:", error)
-    return NextResponse.json({ error: "Failed to create transport route" }, { status: 500 })
+    return NextResponse.json(
+      { error: "Failed to create transport route" },
+      { status: 500 }
+    )
   }
 }

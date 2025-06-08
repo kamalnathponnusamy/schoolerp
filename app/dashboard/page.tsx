@@ -32,12 +32,26 @@ import {
 } from "lucide-react"
 
 interface DashboardStats {
-  totalStudents: number
-  totalTeachers: number
-  totalClasses: number
-  pendingFees: number
-  todayAttendance: number
-  upcomingExams: number
+  stats: {
+    totalStudents: number
+    totalTeachers: number
+    totalClasses: number
+    pendingFees: number
+    attendancePercentage: number
+    upcomingExams: number
+    recentActivities: Array<{
+      type: string
+      description: string
+      date: string
+      class?: string
+    }>
+    feeCollection: {
+      totalFees: number
+      collectedFees: number
+      totalRecords: number
+      collectionRate: number
+    }
+  }
 }
 
 interface Student {
@@ -101,13 +115,13 @@ function StatCard({ title, value, icon: Icon, color, trend, trendValue, descript
 }
 
 export default function Dashboard() {
-  const [stats, setStats] = useState<DashboardStats>({
+  const [stats, setStats] = useState({
     totalStudents: 0,
     totalTeachers: 0,
     totalClasses: 0,
     pendingFees: 0,
     todayAttendance: 0,
-    upcomingExams: 0,
+    upcomingExams: 0
   })
   const [students, setStudents] = useState<Student[]>([])
   const [fees, setFees] = useState<Fee[]>([])
@@ -132,20 +146,27 @@ export default function Dashboard() {
     try {
       const statsResponse = await fetch("/api/dashboard/stats")
       if (statsResponse.ok) {
-        const statsData = await statsResponse.json()
-        setStats(statsData)
+        const data = await statsResponse.json()
+        setStats({
+          totalStudents: data.stats.totalStudents,
+          totalTeachers: data.stats.totalTeachers,
+          totalClasses: data.stats.totalClasses,
+          pendingFees: data.stats.pendingFees,
+          todayAttendance: data.stats.attendancePercentage,
+          upcomingExams: data.stats.upcomingExams
+        })
       }
 
       const studentsResponse = await fetch("/api/students/list")
       if (studentsResponse.ok) {
         const studentsData = await studentsResponse.json()
-        setStudents(studentsData.students || [])
+        setStudents(studentsData)
       }
 
       const feesResponse = await fetch("/api/fees/summary")
       if (feesResponse.ok) {
         const feesData = await feesResponse.json()
-        setFees(feesData.fees || [])
+        setFees(feesData)
       }
 
       setLoading(false)

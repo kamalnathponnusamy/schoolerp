@@ -1,7 +1,29 @@
-import { neon } from "@neondatabase/serverless"
 import { type NextRequest, NextResponse } from "next/server"
+import { sql } from "@/lib/db"
 
-const sql = neon(process.env.DATABASE_URL!)
+interface Student {
+  id: number
+  student_id: string
+  user_id: number
+  class_id: number
+  admission_number: string
+  admission_date: string
+  father_name: string | null
+  mother_name: string | null
+  guardian_phone: string | null
+  blood_group: string | null
+  transport_opted: boolean
+  transport_route_id: number | null
+  status: string
+  name: string
+  email: string
+  phone: string | null
+  date_of_birth: string | null
+  address: string | null
+  class_name: string
+  section: string
+  transport_route: string | null
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,12 +31,12 @@ export async function GET(request: NextRequest) {
     const classFilter = searchParams.get("class")
     const searchTerm = searchParams.get("search")
 
-    let students
+    let students: Student[]
 
     if (classFilter && searchTerm) {
       // Both filters applied
-      students = await sql`
-        SELECT 
+      students = await sql<Student>(
+        `SELECT 
           s.id,
           s.student_id,
           s.user_id,
@@ -41,16 +63,17 @@ export async function GET(request: NextRequest) {
         LEFT JOIN classes c ON s.class_id = c.id 
         LEFT JOIN transport_routes tr ON s.transport_route_id = tr.id
         WHERE s.status = 'active'
-          AND c.class_name = ${classFilter}
-          AND (u.full_name ILIKE ${`%${searchTerm}%`} 
-               OR s.student_id ILIKE ${`%${searchTerm}%`} 
-               OR s.admission_number ILIKE ${`%${searchTerm}%`})
-        ORDER BY u.full_name
-      `
+          AND c.class_name = ?
+          AND (u.full_name LIKE ? 
+               OR s.student_id LIKE ? 
+               OR s.admission_number LIKE ?)
+        ORDER BY u.full_name`,
+        [classFilter, `%${searchTerm}%`, `%${searchTerm}%`, `%${searchTerm}%`]
+      )
     } else if (classFilter) {
       // Only class filter
-      students = await sql`
-        SELECT 
+      students = await sql<Student>(
+        `SELECT 
           s.id,
           s.student_id,
           s.user_id,
@@ -77,13 +100,14 @@ export async function GET(request: NextRequest) {
         LEFT JOIN classes c ON s.class_id = c.id 
         LEFT JOIN transport_routes tr ON s.transport_route_id = tr.id
         WHERE s.status = 'active'
-          AND c.class_name = ${classFilter}
-        ORDER BY u.full_name
-      `
+          AND c.class_name = ?
+        ORDER BY u.full_name`,
+        [classFilter]
+      )
     } else if (searchTerm) {
       // Only search term
-      students = await sql`
-        SELECT 
+      students = await sql<Student>(
+        `SELECT 
           s.id,
           s.student_id,
           s.user_id,
@@ -110,15 +134,16 @@ export async function GET(request: NextRequest) {
         LEFT JOIN classes c ON s.class_id = c.id 
         LEFT JOIN transport_routes tr ON s.transport_route_id = tr.id
         WHERE s.status = 'active'
-          AND (u.full_name ILIKE ${`%${searchTerm}%`} 
-               OR s.student_id ILIKE ${`%${searchTerm}%`} 
-               OR s.admission_number ILIKE ${`%${searchTerm}%`})
-        ORDER BY u.full_name
-      `
+          AND (u.full_name LIKE ? 
+               OR s.student_id LIKE ? 
+               OR s.admission_number LIKE ?)
+        ORDER BY u.full_name`,
+        [`%${searchTerm}%`, `%${searchTerm}%`, `%${searchTerm}%`]
+      )
     } else {
       // No filters
-      students = await sql`
-        SELECT 
+      students = await sql<Student>(
+        `SELECT 
           s.id,
           s.student_id,
           s.user_id,
@@ -145,8 +170,8 @@ export async function GET(request: NextRequest) {
         LEFT JOIN classes c ON s.class_id = c.id 
         LEFT JOIN transport_routes tr ON s.transport_route_id = tr.id
         WHERE s.status = 'active'
-        ORDER BY u.full_name
-      `
+        ORDER BY u.full_name`
+      )
     }
 
     return NextResponse.json(students)
@@ -181,28 +206,32 @@ export async function POST(request: NextRequest) {
     const username = student_id.toLowerCase()
 
     // First create the user
-    const userResult = await sql`
-      INSERT INTO users (
+    const userResult = await sql(
+      `INSERT INTO users (
         username, email, password_hash, role, full_name, phone, date_of_birth, address
       ) VALUES (
-        ${username}, ${email}, '$2b$10$defaulthash', 'student', ${full_name}, ${phone}, ${date_of_birth}, ${address}
-      ) RETURNING id
-    `
+        ?, ?, '$2b$10$defaulthash', 'student', ?, ?, ?, ?
+      ) RETURNING id`,
+      [username, email, date_of_birth, address, phone]
+    )
 
     const userId = userResult[0].id
 
     // Then create the student record
-    const studentResult = await sql`
-      INSERT INTO students (
+    const studentResult = await sql(
+      `INSERT INTO students (
         student_id, user_id, class_id, admission_number, admission_date,
         father_name, mother_name, guardian_phone, blood_group,
         transport_opted, transport_route_id, status
       ) VALUES (
-        ${student_id}, ${userId}, ${class_id}, ${admission_number}, ${admission_date},
-        ${father_name}, ${mother_name}, ${guardian_phone}, ${blood_group},
-        ${transport_opted || false}, ${transport_route_id}, 'active'
-      ) RETURNING *
-    `
+        ?, ?, ?, ?, ?,
+        ?, ?, ?, ?,
+        ?, ?, 'active'
+      ) RETURNING *`,
+      [student_id, userId, class_id, admission_number, admission_date,
+        father_name, mother_name, guardian_phone, blood_group,
+        transport_opted || false, transport_route_id]
+    )
 
     return NextResponse.json(studentResult[0])
   } catch (error) {

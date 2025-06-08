@@ -1,20 +1,32 @@
-import { neon } from "@neondatabase/serverless"
 import { type NextRequest, NextResponse } from "next/server"
+import { sql } from "@/lib/db"
 
-const sql = neon(process.env.DATABASE_URL!)
+interface TransportRoute {
+  id: number
+  route_name: string
+  route_code: string
+  pickup_points: string
+  monthly_fee: number
+  driver_name: string | null
+  driver_phone: string | null
+  vehicle_number: string | null
+  capacity: number | null
+  student_count: number
+  total_monthly_revenue: number
+}
 
 export async function GET() {
   try {
-    const routes = await sql`
-      SELECT 
+    const routes = await sql<TransportRoute>(
+      `SELECT 
         tr.*,
         COUNT(st.student_id) as student_count,
         (COUNT(st.student_id) * tr.monthly_fee) as total_monthly_revenue
       FROM transport_routes tr
       LEFT JOIN students st ON tr.id = st.transport_route_id AND st.transport_opted = true
       GROUP BY tr.id
-      ORDER BY tr.route_name
-    `
+      ORDER BY tr.route_name`
+    )
 
     return NextResponse.json({ routes })
   } catch (error) {

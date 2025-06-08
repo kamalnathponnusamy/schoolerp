@@ -3,7 +3,7 @@ import { sql } from "@/lib/db"
 
 export async function GET() {
   try {
-    const assignments = await sql`
+    const assignments = await sql(`
       SELECT 
         a.id, a.title, a.description, a.due_date, a.assigned_date,
         s.subject_name,
@@ -14,7 +14,7 @@ export async function GET() {
       JOIN classes c ON a.class_id = c.id
       JOIN users u ON a.teacher_id = u.id
       ORDER BY a.due_date DESC
-    `
+    `)
 
     return NextResponse.json({ assignments })
   } catch (error) {
@@ -30,11 +30,18 @@ export async function POST(request: Request) {
     // For demo, use teacher ID 3
     const teacherId = 3
 
-    const result = await sql`
+    const result = await sql(`
       INSERT INTO assignments (title, description, subject_id, class_id, teacher_id, due_date)
-      VALUES (${title}, ${description}, ${subject_id}, ${class_id}, ${teacherId}, ${due_date})
+      VALUES (?, ?, ?, ?, ?, ?)
       RETURNING id
-    `
+    `, {
+      title,
+      description,
+      subject_id,
+      class_id,
+      teacherId,
+      due_date
+    })
 
     return NextResponse.json({ message: "Assignment created successfully", id: result[0].id })
   } catch (error) {

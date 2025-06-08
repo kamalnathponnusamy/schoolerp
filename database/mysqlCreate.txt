@@ -92,16 +92,23 @@ CREATE TABLE attendance (
 );
 
 CREATE TABLE exams (
-    id SERIAL PRIMARY KEY,
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     exam_name VARCHAR(200) NOT NULL,
-    class_id INTEGER REFERENCES classes(id),
-    subject_id INTEGER,
+    class_id BIGINT UNSIGNED,
+    subject_id BIGINT UNSIGNED,
     exam_date DATE NOT NULL,
     max_marks INTEGER NOT NULL,
     duration_minutes INTEGER,
     exam_type VARCHAR(50) CHECK (exam_type IN ('unit_test', 'quarterly', 'half_yearly', 'annual')),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+    start_time TIME,
+    end_time TIME,
+    passing_marks INTEGER,
+    syllabus TEXT,
+    status VARCHAR(20) DEFAULT 'scheduled',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE SET NULL,
+    FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE exam_results (
     id SERIAL PRIMARY KEY,
@@ -156,20 +163,21 @@ CREATE TABLE homework (
 );
 
 CREATE TABLE inventory (
-    id SERIAL PRIMARY KEY,
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     item_name VARCHAR(200) NOT NULL,
     item_code VARCHAR(50) NOT NULL UNIQUE,
     category VARCHAR(100) NOT NULL,
     description TEXT,
-    quantity_available INTEGER DEFAULT 0 NOT NULL,
+    quantity_available INTEGER NOT NULL DEFAULT 0,
     unit_price DECIMAL(10,2),
     supplier_name VARCHAR(200),
     purchase_date DATE,
     expiry_date DATE,
     location VARCHAR(100),
-    status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'damaged')),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+    status VARCHAR(20) DEFAULT 'active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_inventory_status CHECK (status IN ('active', 'inactive', 'damaged'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE inventory_transactions (
     id SERIAL PRIMARY KEY,
