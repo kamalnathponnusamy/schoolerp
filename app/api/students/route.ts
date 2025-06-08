@@ -1,46 +1,45 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 import { sql } from "@/lib/db"
 
 interface Student {
   id: number
   student_id: string
-  user_id: number
-  class_id: number
-  admission_number: string
-  admission_date: string
-  father_name: string | null
-  mother_name: string | null
-  guardian_phone: string | null
-  blood_group: string | null
-  transport_opted: boolean
-  transport_route_id: number | null
-  status: string
-  name: string
+  full_name: string
   email: string
-  phone: string | null
-  date_of_birth: string | null
-  address: string | null
+  phone: string
   class_name: string
   section: string
-  transport_route: string | null
+  admission_number: string
+  admission_date: string
+  father_name?: string
+  mother_name?: string
+  guardian_phone?: string
+  blood_group?: string
+  transport_opted: boolean
+  transport_route?: string
+  status: string
 }
 
-export async function GET(request: NextRequest) {
+export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
-    const classFilter = searchParams.get("class")
+    const classId = searchParams.get("class_id")
     const searchTerm = searchParams.get("search")
+    const classFilter = searchParams.get("class")
 
     let students: Student[]
 
-    if (classFilter && searchTerm) {
-      // Both filters applied
-      students = await sql<Student>(
-        `SELECT 
+    if (classId) {
+      // Fetch students for a specific class
+      students = await sql<Student>(`
+        SELECT 
           s.id,
           s.student_id,
-          s.user_id,
-          s.class_id,
+          u.full_name,
+          u.email,
+          u.phone,
+          c.class_name,
+          c.section,
           s.admission_number,
           s.admission_date,
           s.father_name,
@@ -48,36 +47,26 @@ export async function GET(request: NextRequest) {
           s.guardian_phone,
           s.blood_group,
           s.transport_opted,
-          s.transport_route_id,
-          s.status,
-          u.full_name as name,
-          u.email,
-          u.phone,
-          u.date_of_birth,
-          u.address,
-          c.class_name,
-          c.section,
-          tr.route_name as transport_route
-        FROM students s 
-        LEFT JOIN users u ON s.user_id = u.id
-        LEFT JOIN classes c ON s.class_id = c.id 
+          tr.route_name as transport_route,
+          s.status
+        FROM students s
+        JOIN users u ON s.user_id = u.id
+        JOIN classes c ON s.class_id = c.id
         LEFT JOIN transport_routes tr ON s.transport_route_id = tr.id
-        WHERE s.status = 'active'
-          AND c.class_name = ?
-          AND (u.full_name LIKE ? 
-               OR s.student_id LIKE ? 
-               OR s.admission_number LIKE ?)
-        ORDER BY u.full_name`,
-        [classFilter, `%${searchTerm}%`, `%${searchTerm}%`, `%${searchTerm}%`]
-      )
-    } else if (classFilter) {
-      // Only class filter
-      students = await sql<Student>(
-        `SELECT 
+        WHERE s.class_id = ? AND s.status = 'active'
+        ORDER BY u.full_name
+      `, [classId])
+    } else if (searchTerm || classFilter) {
+      // Search with filters
+      let query = `
+        SELECT 
           s.id,
           s.student_id,
-          s.user_id,
-          s.class_id,
+          u.full_name,
+          u.email,
+          u.phone,
+          c.class_name,
+          c.section,
           s.admission_number,
           s.admission_date,
           s.father_name,
@@ -85,69 +74,41 @@ export async function GET(request: NextRequest) {
           s.guardian_phone,
           s.blood_group,
           s.transport_opted,
-          s.transport_route_id,
-          s.status,
-          u.full_name as name,
-          u.email,
-          u.phone,
-          u.date_of_birth,
-          u.address,
-          c.class_name,
-          c.section,
-          tr.route_name as transport_route
-        FROM students s 
-        LEFT JOIN users u ON s.user_id = u.id
-        LEFT JOIN classes c ON s.class_id = c.id 
+          tr.route_name as transport_route,
+          s.status
+        FROM students s
+        JOIN users u ON s.user_id = u.id
+        JOIN classes c ON s.class_id = c.id
         LEFT JOIN transport_routes tr ON s.transport_route_id = tr.id
         WHERE s.status = 'active'
-          AND c.class_name = ?
-        ORDER BY u.full_name`,
-        [classFilter]
-      )
-    } else if (searchTerm) {
-      // Only search term
-      students = await sql<Student>(
-        `SELECT 
-          s.id,
-          s.student_id,
-          s.user_id,
-          s.class_id,
-          s.admission_number,
-          s.admission_date,
-          s.father_name,
-          s.mother_name,
-          s.guardian_phone,
-          s.blood_group,
-          s.transport_opted,
-          s.transport_route_id,
-          s.status,
-          u.full_name as name,
-          u.email,
-          u.phone,
-          u.date_of_birth,
-          u.address,
-          c.class_name,
-          c.section,
-          tr.route_name as transport_route
-        FROM students s 
-        LEFT JOIN users u ON s.user_id = u.id
-        LEFT JOIN classes c ON s.class_id = c.id 
-        LEFT JOIN transport_routes tr ON s.transport_route_id = tr.id
-        WHERE s.status = 'active'
-          AND (u.full_name LIKE ? 
-               OR s.student_id LIKE ? 
-               OR s.admission_number LIKE ?)
-        ORDER BY u.full_name`,
-        [`%${searchTerm}%`, `%${searchTerm}%`, `%${searchTerm}%`]
-      )
+      `
+      
+      const params: any[] = []
+      
+      if (searchTerm) {
+        query += ` AND (u.full_name LIKE ? OR s.student_id LIKE ? OR s.admission_number LIKE ?)`
+        params.push(`%${searchTerm}%`, `%${searchTerm}%`, `%${searchTerm}%`)
+      }
+      
+      if (classFilter) {
+        query += ` AND c.class_name = ?`
+        params.push(classFilter)
+      }
+      
+      query += ` ORDER BY u.full_name`
+      
+      students = await sql<Student>(query, params)
     } else {
-      // No filters
-      students = await sql<Student>(
-        `SELECT 
+      // Fetch all students
+      students = await sql<Student>(`
+        SELECT 
           s.id,
           s.student_id,
-          s.user_id,
-          s.class_id,
+          u.full_name,
+          u.email,
+          u.phone,
+          c.class_name,
+          c.section,
           s.admission_number,
           s.admission_date,
           s.father_name,
@@ -155,33 +116,28 @@ export async function GET(request: NextRequest) {
           s.guardian_phone,
           s.blood_group,
           s.transport_opted,
-          s.transport_route_id,
-          s.status,
-          u.full_name as name,
-          u.email,
-          u.phone,
-          u.date_of_birth,
-          u.address,
-          c.class_name,
-          c.section,
-          tr.route_name as transport_route
-        FROM students s 
-        LEFT JOIN users u ON s.user_id = u.id
-        LEFT JOIN classes c ON s.class_id = c.id 
+          tr.route_name as transport_route,
+          s.status
+        FROM students s
+        JOIN users u ON s.user_id = u.id
+        JOIN classes c ON s.class_id = c.id
         LEFT JOIN transport_routes tr ON s.transport_route_id = tr.id
         WHERE s.status = 'active'
-        ORDER BY u.full_name`
-      )
+        ORDER BY u.full_name
+      `)
     }
 
-    return NextResponse.json(students)
+    return NextResponse.json({ students })
   } catch (error) {
     console.error("Error fetching students:", error)
-    return NextResponse.json({ error: "Failed to fetch students" }, { status: 500 })
+    return NextResponse.json(
+      { error: "Failed to fetch students" },
+      { status: 500 }
+    )
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
     const body = await request.json()
     const {
@@ -202,24 +158,36 @@ export async function POST(request: NextRequest) {
       transport_route_id,
     } = body
 
+    // Validate required fields
+    if (!student_id || !full_name || !class_id || !admission_number || !admission_date) {
+      return NextResponse.json(
+        { error: "Missing required fields: student_id, full_name, class_id, admission_number, admission_date" },
+        { status: 400 }
+      )
+    }
+
     // Generate username from student_id
     const username = student_id.toLowerCase()
 
     // First create the user
-    const userResult = await sql(
-      `INSERT INTO users (
+    const userResult = await sql(`
+      INSERT INTO users (
         username, email, password_hash, role, full_name, phone, date_of_birth, address
       ) VALUES (
         ?, ?, '$2b$10$defaulthash', 'student', ?, ?, ?, ?
-      ) RETURNING id`,
-      [username, email, date_of_birth, address, phone]
-    )
+      )
+    `, [username, email, full_name, phone, date_of_birth, address])
 
-    const userId = userResult[0].id
+    if (!userResult || userResult.length === 0) {
+      throw new Error("Failed to create user")
+    }
+
+    // Get the inserted user ID (MySQL returns insertId in result)
+    const userId = (userResult as any).insertId
 
     // Then create the student record
-    const studentResult = await sql(
-      `INSERT INTO students (
+    const studentResult = await sql(`
+      INSERT INTO students (
         student_id, user_id, class_id, admission_number, admission_date,
         father_name, mother_name, guardian_phone, blood_group,
         transport_opted, transport_route_id, status
@@ -227,15 +195,23 @@ export async function POST(request: NextRequest) {
         ?, ?, ?, ?, ?,
         ?, ?, ?, ?,
         ?, ?, 'active'
-      ) RETURNING *`,
-      [student_id, userId, class_id, admission_number, admission_date,
-        father_name, mother_name, guardian_phone, blood_group,
-        transport_opted || false, transport_route_id]
-    )
+      )
+    `, [
+      student_id, userId, class_id, admission_number, admission_date,
+      father_name, mother_name, guardian_phone, blood_group,
+      transport_opted || false, transport_route_id
+    ])
 
-    return NextResponse.json(studentResult[0])
+    return NextResponse.json({
+      message: "Student created successfully",
+      student_id: student_id,
+      user_id: userId
+    })
   } catch (error) {
     console.error("Error creating student:", error)
-    return NextResponse.json({ error: "Failed to create student" }, { status: 500 })
+    return NextResponse.json(
+      { error: "Failed to create student" },
+      { status: 500 }
+    )
   }
 }
