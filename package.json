@@ -44,6 +44,8 @@
     "date-fns": "latest",
     "embla-carousel-react": "8.5.1",
     "input-otp": "1.4.2",
+    "jspdf": "^2.5.2",
+    "jspdf-autotable": "^3.8.4",
     "lucide-react": "^0.454.0",
     "mysql2": "^3.6.5",
     "next": "15.2.4",
@@ -58,6 +60,7 @@
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
     "vaul": "1.1.2",
+    "xlsx": "^0.18.5",
     "zod": "^3.24.1"
   },
   "devDependencies": {
