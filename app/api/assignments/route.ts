@@ -8,11 +8,11 @@ export async function GET() {
         a.id, a.title, a.description, a.due_date, a.assigned_date,
         s.subject_name,
         c.class_name, c.section,
-        u.full_name as teacher_name
+        t.name as teacher_name
       FROM assignments a
       JOIN subjects s ON a.subject_id = s.id
       JOIN classes c ON a.class_id = c.id
-      JOIN users u ON a.teacher_id = u.id
+      JOIN teachers t ON a.teacher_id = t.id
       ORDER BY a.due_date DESC
     `)
 
@@ -30,20 +30,18 @@ export async function POST(request: Request) {
     // For demo, use teacher ID 3
     const teacherId = 3
 
-    const result = await sql(`
+    await sql(`
       INSERT INTO assignments (title, description, subject_id, class_id, teacher_id, due_date)
       VALUES (?, ?, ?, ?, ?, ?)
-      RETURNING id
-    `, {
-      title,
-      description,
-      subject_id,
-      class_id,
-      teacherId,
-      due_date
-    })
+    `, [title, description, subject_id, class_id, teacherId, due_date])
 
-    return NextResponse.json({ message: "Assignment created successfully", id: result[0].id })
+    // Get the last inserted ID
+    const [result] = await sql('SELECT LAST_INSERT_ID() as id')
+
+    return NextResponse.json({ 
+      message: "Assignment created successfully", 
+      id: result.id 
+    })
   } catch (error) {
     console.error("Error creating assignment:", error)
     return NextResponse.json({ error: "Failed to create assignment" }, { status: 500 })

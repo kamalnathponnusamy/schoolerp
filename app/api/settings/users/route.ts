@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+import { type NextRequest } from "next/server"
 import { sql } from "@/lib/db"
 
 interface User {
@@ -11,16 +11,16 @@ interface User {
 
 export async function GET() {
   try {
-    const users = await sql<User>(`
-      SELECT id, full_name, email, role, created_at
+    const users = await sql<User>(
+      `SELECT id, full_name, email, role, created_at
       FROM users
-      ORDER BY full_name
-    `)
+      ORDER BY full_name`
+    )
 
-    return NextResponse.json(users)
+    return Response.json(users)
   } catch (error) {
     console.error("Error fetching users:", error)
-    return NextResponse.json(
+    return Response.json(
       { error: "Failed to fetch users" },
       { status: 500 }
     )

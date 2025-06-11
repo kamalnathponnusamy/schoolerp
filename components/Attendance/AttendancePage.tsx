@@ -58,7 +58,7 @@ export default function AttendancePage() {
 
       const data = await response.json()
       // Initialize all students as present by default
-      const studentsWithStatus = data.students.map((student: Student) => ({
+      const studentsWithStatus = data.map((student: Student) => ({
         ...student,
         status: "present" as const
       }))

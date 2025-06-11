@@ -1,69 +1,87 @@
-import { NextResponse } from "next/server"
+import { type NextRequest } from "next/server"
 import { sql } from "@/lib/db"
 
-interface Teacher {
-  id: number
-  teacher_id: string
-  name: string
-  subject: string
-  phone: string
-  email: string
-  qualification: string
-  experience_years: number
-  salary: number
-  status: string
-  assigned_classes: string | null
-}
-
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const teachers = await sql<Teacher>(
+    const teachers = await sql(
       `SELECT 
-        id,
-        teacher_id,
-        name,
-        subject,
-        phone,
-        email,
-        qualification,
-        experience_years,
-        salary,
-        status,
-        assigned_classes
-      FROM teachers 
-      ORDER BY name ASC`
+        t.id,
+        t.teacher_id,
+        t.name,
+        t.subject,
+        t.phone,
+        t.email,
+        t.assigned_classes,
+        t.qualification,
+        t.experience_years,
+        t.salary,
+        t.joining_date,
+        t.photo_url,
+        t.qr_code,
+        t.status,
+        t.created_at
+      FROM teachers t
+      WHERE t.status = 'active'
+      ORDER BY t.name`
     )
 
-    // Ensure we always return an array
-    return NextResponse.json(Array.isArray(teachers) ? teachers : [])
+    return Response.json(teachers)
   } catch (error) {
     console.error("Error fetching teachers:", error)
-    // Return empty array on error instead of error response
-    return NextResponse.json([])
+    return Response.json(
+      { error: "Failed to fetch teachers" },
+      { status: 500 }
+    )
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const sql = neon(process.env.DATABASE_URL!)
+    const {
+      teacher_id,
+      name,
+      subject,
+      phone,
+      email,
+      assigned_classes,
+      qualification,
+      experience_years,
+      salary,
+      joining_date,
+      photo_url,
+      qr_code
+    } = await request.json()
 
-    const { teacher_id, name, subject, phone, email, qualification, experience_years, salary } = body
-
-    // Validate required fields
-    if (!teacher_id || !name || !subject || !phone || !email) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+    if (!teacher_id || !name || !email) {
+      return Response.json(
+        { error: "Teacher ID, name, and email are required" },
+        { status: 400 }
+      )
     }
 
-    const result = await sql`
-      INSERT INTO teachers (teacher_id, name, subject, phone, email, qualification, experience_years, salary, status, assigned_classes)
-      VALUES (${teacher_id}, ${name}, ${subject}, ${phone}, ${email}, ${qualification}, ${experience_years || 0}, ${salary || 0}, 'active', 'Not Assigned')
-      RETURNING *
-    `
+    // Create the teacher record
+    const [teacherResult] = await sql(
+      `INSERT INTO teachers (
+        teacher_id, name, subject, phone, email,
+        assigned_classes, qualification, experience_years,
+        salary, joining_date, photo_url, qr_code, status
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')`,
+      [
+        teacher_id, name, subject, phone, email,
+        assigned_classes, qualification, experience_years,
+        salary, joining_date, photo_url, qr_code
+      ]
+    )
 
-    return NextResponse.json(result[0])
+    return Response.json({
+      message: "Teacher created successfully",
+      id: teacherResult.insertId
+    })
   } catch (error) {
     console.error("Error creating teacher:", error)
-    return NextResponse.json({ error: "Failed to create teacher" }, { status: 500 })
+    return Response.json(
+      { error: "Failed to create teacher" },
+      { status: 500 }
+    )
   }
 }

@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+import { type NextRequest } from "next/server"
 import { sql } from "@/lib/db"
 
 interface AttendanceReport {
@@ -32,7 +32,7 @@ interface ExamReport {
   lowest_score: number
 }
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const type = searchParams.get("type")
@@ -42,7 +42,7 @@ export async function GET(request: Request) {
     const classFilter = searchParams.get("class")
 
     if (!type || !format) {
-      return NextResponse.json({ error: "Type and format are required" }, { status: 400 })
+      return Response.json({ error: "Type and format are required" }, { status: 400 })
     }
 
     let reportData: any[] = []
@@ -127,10 +127,10 @@ export async function GET(request: Request) {
         break
 
       default:
-        return NextResponse.json({ error: "Invalid report type" }, { status: 400 })
+        return Response.json({ error: "Invalid report type" }, { status: 400 })
     }
 
-    return NextResponse.json({
+    return Response.json({
       title: reportTitle,
       type,
       format,
@@ -139,7 +139,7 @@ export async function GET(request: Request) {
     })
   } catch (error) {
     console.error("Error generating report:", error)
-    return NextResponse.json({ error: "Failed to generate report" }, { status: 500 })
+    return Response.json({ error: "Failed to generate report" }, { status: 500 })
   }
 }
 

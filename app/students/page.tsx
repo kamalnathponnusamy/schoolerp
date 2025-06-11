@@ -100,6 +100,7 @@ export default function StudentsPage() {
 
   const fetchStudents = async () => {
     try {
+      setLoading(true)
       const params = new URLSearchParams()
       if (searchTerm) params.append("search", searchTerm)
       if (classFilter) params.append("class", classFilter)
@@ -114,6 +115,8 @@ export default function StudentsPage() {
     } catch (error) {
       console.error("Error fetching students:", error)
       setStudents([])
+    } finally {
+      setLoading(false)
     }
   }
 

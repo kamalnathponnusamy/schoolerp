@@ -1,30 +1,37 @@
-import { NextResponse } from "next/server"
+import { type NextRequest } from "next/server"
 import { sql } from "@/lib/db"
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const { attendance } = await request.json()
+    const records = await request.json()
 
-    // Get current user (teacher) from session - for demo, use teacher ID 3
-    const teacherId = 3
-
-    // Delete existing attendance for the same date and students
-    for (const record of attendance) {
-      await sql`
-        DELETE FROM attendance 
-        WHERE student_id = ${record.student_id} AND date = ${record.date}
-      `
-
-      // Insert new attendance record
-      await sql`
-        INSERT INTO attendance (student_id, date, status, marked_by)
-        VALUES (${record.student_id}, ${record.date}, ${record.status}, ${teacherId})
-      `
+    if (!Array.isArray(records)) {
+      return Response.json(
+        { error: "Invalid request format" },
+        { status: 400 }
+      )
     }
 
-    return NextResponse.json({ message: "Attendance saved successfully" })
+    for (const record of records) {
+      // Delete existing attendance record for the same date
+      await sql(
+        "DELETE FROM attendance WHERE student_id = ? AND date = ?",
+        [record.student_id, record.date]
+      )
+
+      // Insert new attendance record
+      await sql(
+        "INSERT INTO attendance (student_id, date, status, remarks) VALUES (?, ?, ?, ?)",
+        [record.student_id, record.date, record.status, record.remarks || null]
+      )
+    }
+
+    return Response.json({ message: "Attendance marked successfully" })
   } catch (error) {
-    console.error("Error saving attendance:", error)
-    return NextResponse.json({ error: "Failed to save attendance" }, { status: 500 })
+    console.error("Error marking attendance:", error)
+    return Response.json(
+      { error: "Failed to mark attendance" },
+      { status: 500 }
+    )
   }
 }

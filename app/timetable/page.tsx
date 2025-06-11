@@ -44,6 +44,8 @@ interface Teacher {
   id: number
   teacher_name: string
   user_id: number
+  full_name: string
+  subject: string
 }
 
 const DAYS = [
@@ -113,7 +115,9 @@ export default function TimetablePage() {
   const fetchTimetable = async () => {
     try {
       const params = new URLSearchParams()
-      if (selectedClass) params.append("class_id", selectedClass)
+      if (selectedClass && selectedClass !== "all") {
+        params.append("class_id", selectedClass)
+      }
 
       if (userRole === "teacher" && currentUserId) {
         const teacherResponse = await fetch(`/api/teachers?user_id=${currentUserId}`)
@@ -137,6 +141,13 @@ export default function TimetablePage() {
       setTimetable([])
     }
   }
+
+  // Add useEffect to refetch timetable when selectedClass changes
+  useEffect(() => {
+    if (!loading) {
+      fetchTimetable()
+    }
+  }, [selectedClass])
 
   const fetchClasses = async () => {
     try {
@@ -348,17 +359,11 @@ export default function TimetablePage() {
                             <SelectValue placeholder="Select class" />
                           </SelectTrigger>
                           <SelectContent>
-                            {classes.length > 0 ? (
-                              classes.map((cls) => (
-                                <SelectItem key={cls.id} value={cls.id.toString()}>
-                                  {cls.class_name} {cls.section}
-                                </SelectItem>
-                              ))
-                            ) : (
-                              <SelectItem value="no_classes" disabled>
-                                No classes available
+                            {classes.map((cls) => (
+                              <SelectItem key={cls.id} value={cls.id.toString()}>
+                                {cls.class_name} {cls.section}
                               </SelectItem>
-                            )}
+                            ))}
                           </SelectContent>
                         </Select>
                       </div>
@@ -398,17 +403,11 @@ export default function TimetablePage() {
                             <SelectValue placeholder="Select teacher" />
                           </SelectTrigger>
                           <SelectContent>
-                            {teachers.length > 0 ? (
-                              teachers.map((teacher) => (
-                                <SelectItem key={teacher.id} value={teacher.id.toString()}>
-                                  {teacher.teacher_name}
-                                </SelectItem>
-                              ))
-                            ) : (
-                              <SelectItem value="no_teachers" disabled>
-                                No teachers available
+                            {teachers.map((teacher) => (
+                              <SelectItem key={teacher.id} value={teacher.id.toString()}>
+                                {teacher.full_name} - {teacher.subject}
                               </SelectItem>
-                            )}
+                            ))}
                           </SelectContent>
                         </Select>
                       </div>
@@ -513,9 +512,6 @@ export default function TimetablePage() {
                       ))}
                     </SelectContent>
                   </Select>
-                  <Button onClick={fetchTimetable} variant="outline">
-                    Apply Filter
-                  </Button>
                 </div>
               </CardContent>
             </Card>

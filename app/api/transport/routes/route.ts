@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+import { type NextRequest } from "next/server"
 import { sql } from "@/lib/db"
 
 interface TransportRoute {
@@ -16,26 +16,26 @@ interface TransportRoute {
 
 export async function GET() {
   try {
-    const routes = await sql<TransportRoute>(`
-      SELECT 
+    const routes = await sql<TransportRoute>(
+      `SELECT 
         id, route_name, route_code, pickup_points,
         driver_name, driver_phone, vehicle_number,
         capacity, monthly_fee, created_at
       FROM transport_routes
-      ORDER BY route_name
-    `)
+      ORDER BY route_name`
+    )
 
-    return NextResponse.json(routes)
+    return Response.json(routes)
   } catch (error) {
     console.error("Error fetching transport routes:", error)
-    return NextResponse.json(
+    return Response.json(
       { error: "Failed to fetch transport routes" },
       { status: 500 }
     )
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const {
@@ -49,28 +49,29 @@ export async function POST(request: Request) {
       capacity
     } = body
 
-    const result = await sql(`
-      INSERT INTO transport_routes (
+    const result = await sql(
+      `INSERT INTO transport_routes (
         route_name, route_code, pickup_points,
         monthly_fee, driver_name, driver_phone,
         vehicle_number, capacity
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `, [
-      route_name,
-      route_code,
-      pickup_points,
-      monthly_fee,
-      driver_name || null,
-      driver_phone || null,
-      vehicle_number || null,
-      capacity || null
-    ])
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        route_name,
+        route_code,
+        pickup_points,
+        monthly_fee,
+        driver_name || null,
+        driver_phone || null,
+        vehicle_number || null,
+        capacity || null
+      ]
+    )
 
-    return NextResponse.json({ message: "Transport route created successfully" })
+    return Response.json({ message: "Transport route created successfully" })
   } catch (error) {
     console.error("Error creating transport route:", error)
-    return NextResponse.json(
+    return Response.json(
       { error: "Failed to create transport route" },
       { status: 500 }
     )

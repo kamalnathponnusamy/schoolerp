@@ -1,40 +1,63 @@
-import { NextResponse } from "next/server"
+import { type NextRequest } from "next/server"
 import { sql } from "@/lib/db"
 
-export async function GET() {
+interface SqlResult {
+  insertId: number
+  affectedRows: number
+}
+
+export async function GET(request: NextRequest) {
   try {
-    const events = await sql`
-      SELECT 
+    const events = await sql(
+      `SELECT 
         e.id, e.event_name, e.description, e.event_date, e.event_time,
         u.full_name as created_by_name
       FROM events e
-      JOIN users u ON e.created_by = u.id
-      ORDER BY e.event_date DESC
-    `
+      LEFT JOIN users u ON e.created_by = u.id
+      ORDER BY e.event_date DESC, e.event_time DESC`
+    )
 
-    return NextResponse.json({ events })
+    return Response.json(events)
   } catch (error) {
     console.error("Error fetching events:", error)
-    return NextResponse.json({ error: "Failed to fetch events" }, { status: 500 })
+    return Response.json(
+      { error: "Failed to fetch events" },
+      { status: 500 }
+    )
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const { event_name, description, event_date, event_time } = await request.json()
 
-    // For demo, use admin user ID 1
-    const createdBy = 1
+    if (!event_name || !event_date) {
+      return Response.json(
+        { error: "Event name and date are required" },
+        { status: 400 }
+      )
+    }
 
-    const result = await sql`
-      INSERT INTO events (event_name, description, event_date, event_time, created_by)
-      VALUES (${event_name}, ${description}, ${event_date}, ${event_time}, ${createdBy})
-      RETURNING id
-    `
+    // For demo, use user ID 1 as the creator
+    const created_by = 1
 
-    return NextResponse.json({ message: "Event created successfully", id: result[0].id })
+    const result = await sql(
+      `INSERT INTO events (event_name, description, event_date, event_time, created_by)
+       VALUES (?, ?, ?, ?, ?)`,
+      [event_name, description, event_date, event_time, created_by]
+    )
+
+    // Get the last inserted ID
+    const [lastInsert] = await sql(
+      "SELECT LAST_INSERT_ID() as id"
+    )
+
+    return Response.json({ message: "Event created successfully", id: lastInsert.id })
   } catch (error) {
     console.error("Error creating event:", error)
-    return NextResponse.json({ error: "Failed to create event" }, { status: 500 })
+    return Response.json(
+      { error: "Failed to create event" },
+      { status: 500 }
+    )
   }
 }

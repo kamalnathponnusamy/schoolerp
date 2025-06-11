@@ -9,6 +9,14 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CreditCard, Download, Search, Eye, Receipt, DollarSign, TrendingUp, AlertCircle } from "lucide-react"
 
+interface PaymentHistory {
+  date: string
+  amount: number
+  method: string
+  receipt: string
+  transaction_id?: string
+}
+
 interface Fee {
   id: number
   student_name: string
@@ -27,6 +35,7 @@ interface Fee {
   due_date: string
   term: string
   academic_year: string
+  payment_history: PaymentHistory[]
 }
 
 interface FeeStats {
@@ -59,10 +68,16 @@ export default function FeesPage() {
   const fetchFees = async () => {
     try {
       setLoading(true)
-      const response = await fetch("/api/fees/summary")
-      if (response.ok) {
-        const data = await response.json()
-        setFees(data.fees)
+      // Fetch both summary and detailed fees list
+      const [summaryResponse, feesResponse] = await Promise.all([
+        fetch("/api/fees/summary"),
+        fetch("/api/fees/list")
+      ])
+
+      if (summaryResponse.ok && feesResponse.ok) {
+        const summaryData = await summaryResponse.json()
+        const feesData = await feesResponse.json()
+        setFees(feesData)
       }
     } catch (error) {
       console.error("Error fetching fees:", error)
@@ -201,6 +216,77 @@ export default function FeesPage() {
           </Card>
         </div>
 
+        {/* Fees Table */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Fee Records</CardTitle>
+            <CardDescription>View and manage student fee payments</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {filteredFees.map((fee) => (
+                <div key={fee.id} className="border rounded-lg p-4 space-y-4">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="font-semibold">{fee.student_name}</h3>
+                      <p className="text-sm text-gray-500">
+                        {fee.student_id} • {fee.class_name} - {fee.section}
+                      </p>
+                    </div>
+                    <Badge className={getStatusColor(fee.status)}>{fee.status}</Badge>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-500">Total Amount</p>
+                      <p className="font-medium">₹{fee.total_amount.toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Paid Amount</p>
+                      <p className="font-medium">₹{fee.paid_amount.toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Due Date</p>
+                      <p className="font-medium">{new Date(fee.due_date).toLocaleDateString()}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Term</p>
+                      <p className="font-medium">{fee.term}</p>
+                    </div>
+                  </div>
+
+                  {fee.payment_history.length > 0 && (
+                    <div className="mt-4">
+                      <h4 className="text-sm font-medium mb-2">Payment History</h4>
+                      <div className="space-y-2">
+                        {fee.payment_history.map((payment, index) => (
+                          <div key={index} className="flex justify-between items-center text-sm">
+                            <div>
+                              <span className="font-medium">{new Date(payment.date).toLocaleDateString()}</span>
+                              <span className="text-gray-500 ml-2">({payment.method})</span>
+                            </div>
+                            <div className="flex items-center gap-4">
+                              <span className="font-medium">₹{payment.amount.toLocaleString()}</span>
+                              <span className="text-gray-500">Receipt: {payment.receipt}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" size="sm" onClick={() => generateInvoice(fee.id)}>
+                      <Receipt className="h-4 w-4 mr-2" />
+                      Generate Invoice
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
         <Tabs defaultValue="fee-overview" className="space-y-4">
           <TabsList className="grid w-full grid-cols-3 lg:w-[600px]">
             <TabsTrigger value="fee-overview">Fee Overview</TabsTrigger>
@@ -323,7 +409,53 @@ export default function FeesPage() {
                 <CardDescription>Track all fee payments and transactions</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-8 text-gray-500">Payment history will be displayed here</div>
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse border border-gray-200">
+                    <thead>
+                      <tr className="bg-gray-50">
+                        <th className="border border-gray-200 px-4 py-2 text-left">Date</th>
+                        <th className="border border-gray-200 px-4 py-2 text-left">Student</th>
+                        <th className="border border-gray-200 px-4 py-2 text-left">Class</th>
+                        <th className="border border-gray-200 px-4 py-2 text-left">Amount</th>
+                        <th className="border border-gray-200 px-4 py-2 text-left">Payment Method</th>
+                        <th className="border border-gray-200 px-4 py-2 text-left">Receipt Number</th>
+                        <th className="border border-gray-200 px-4 py-2 text-left">Transaction ID</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {fees.flatMap(fee => 
+                        fee.payment_history.map((payment, index) => (
+                          <tr key={`${fee.id}-${index}`} className="hover:bg-gray-50">
+                            <td className="border border-gray-200 px-4 py-2">
+                              {new Date(payment.date).toLocaleDateString()}
+                            </td>
+                            <td className="border border-gray-200 px-4 py-2">
+                              <div>
+                                <p className="font-medium">{fee.student_name}</p>
+                                <p className="text-sm text-gray-600">{fee.student_id}</p>
+                              </div>
+                            </td>
+                            <td className="border border-gray-200 px-4 py-2">
+                              {fee.class_name} - {fee.section}
+                            </td>
+                            <td className="border border-gray-200 px-4 py-2">
+                              ₹{payment.amount.toLocaleString()}
+                            </td>
+                            <td className="border border-gray-200 px-4 py-2">
+                              {payment.method}
+                            </td>
+                            <td className="border border-gray-200 px-4 py-2">
+                              {payment.receipt}
+                            </td>
+                            <td className="border border-gray-200 px-4 py-2">
+                              {payment.transaction_id || '-'}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

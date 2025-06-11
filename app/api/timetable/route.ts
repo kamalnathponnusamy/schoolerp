@@ -1,86 +1,96 @@
-import { NextResponse } from "next/server"
+import { type NextRequest } from "next/server"
 import { sql } from "@/lib/db"
 
 interface TimetableEntry {
   id: number
   class_id: number
-  class_name: string
-  section: string
   subject_id: number
-  subject_name: string
   teacher_id: number
-  teacher_name: string
-  day_of_week: string
+  day_of_week: number
   start_time: string
   end_time: string
   room_number: string
   created_at: string
+  class_name: string
+  section: string
+  subject_name: string
+  teacher_name: string
 }
 
-export async function GET() {
+interface SqlResult {
+  insertId: number
+  affectedRows: number
+}
+
+export async function GET(request: NextRequest) {
   try {
-    const timetable = await sql<TimetableEntry>(`
-      SELECT 
-        t.id, t.class_id, c.class_name, c.section,
-        t.subject_id, s.subject_name,
-        t.teacher_id, u.full_name as teacher_name,
-        t.day_of_week, t.start_time, t.end_time, t.room_number,
-        t.created_at
+    const { searchParams } = new URL(request.url)
+    const classId = searchParams.get("classId")
+
+    const timetable = await sql(
+      `SELECT 
+        t.id,
+        t.day,
+        t.time_slot,
+        t.subject_id,
+        s.subject_name,
+        t.teacher_id,
+        u.full_name as teacher_name,
+        t.class_id,
+        c.class_name,
+        c.section,
+        t.room_number
       FROM timetable t
-      JOIN classes c ON t.class_id = c.id
       JOIN subjects s ON t.subject_id = s.id
       JOIN users u ON t.teacher_id = u.id
+      JOIN classes c ON t.class_id = c.id
+      WHERE t.class_id = ?
       ORDER BY 
-        FIELD(t.day_of_week, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'),
-        t.start_time
-    `)
+        CASE t.day
+          WHEN 'Monday' THEN 1
+          WHEN 'Tuesday' THEN 2
+          WHEN 'Wednesday' THEN 3
+          WHEN 'Thursday' THEN 4
+          WHEN 'Friday' THEN 5
+          WHEN 'Saturday' THEN 6
+          WHEN 'Sunday' THEN 7
+        END,
+        t.time_slot`,
+      [classId]
+    )
 
-    return NextResponse.json(timetable)
+    return Response.json(timetable)
   } catch (error) {
     console.error("Error fetching timetable:", error)
-    return NextResponse.json(
+    return Response.json(
       { error: "Failed to fetch timetable" },
       { status: 500 }
     )
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const {
-      class_id,
-      subject_id,
-      teacher_id,
-      day_of_week,
-      start_time,
-      end_time,
-      room_number
-    } = body
+    const { day, time_slot, subject_id, teacher_id, class_id, room_number } = await request.json()
 
-    const result = await sql(`
-      INSERT INTO timetable (
-        class_id, subject_id, teacher_id,
-        day_of_week, start_time, end_time, room_number
+    if (!day || !time_slot || !subject_id || !teacher_id || !class_id) {
+      return Response.json(
+        { error: "Missing required fields" },
+        { status: 400 }
       )
-      VALUES (
-        :class_id, :subject_id, :teacher_id,
-        :day_of_week, :start_time, :end_time, :room_number
-      )
-    `, {
-      class_id,
-      subject_id,
-      teacher_id,
-      day_of_week,
-      start_time,
-      end_time,
-      room_number
-    })
+    }
 
-    return NextResponse.json({ message: "Timetable entry created successfully" })
+    const [result] = await sql<SqlResult[]>(
+      `INSERT INTO timetable (day, time_slot, subject_id, teacher_id, class_id, room_number)
+       VALUES (?, ?, ?, ?, ?, ?)
+       RETURNING id`,
+      [day, time_slot, subject_id, teacher_id, class_id, room_number]
+    )
+
+    return Response.json({ message: "Timetable entry created successfully", id: result.insertId })
   } catch (error) {
     console.error("Error creating timetable entry:", error)
-    return NextResponse.json(
+    return Response.json(
       { error: "Failed to create timetable entry" },
       { status: 500 }
     )
@@ -93,13 +103,23 @@ export async function DELETE(request: NextRequest) {
     const id = searchParams.get("id")
 
     if (!id) {
-      return NextResponse.json({ error: "ID is required" }, { status: 400 })
+      return Response.json(
+        { error: "Timetable entry ID is required" },
+        { status: 400 }
+      )
     }
 
-    await sql`DELETE FROM timetable WHERE id = ${id}`
-    return NextResponse.json({ message: "Timetable entry deleted successfully" })
+    await sql(
+      "DELETE FROM timetable WHERE id = ?",
+      [id]
+    )
+
+    return Response.json({ message: "Timetable entry deleted successfully" })
   } catch (error) {
     console.error("Error deleting timetable entry:", error)
-    return NextResponse.json({ error: "Failed to delete timetable entry" }, { status: 500 })
+    return Response.json(
+      { error: "Failed to delete timetable entry" },
+      { status: 500 }
+    )
   }
 }

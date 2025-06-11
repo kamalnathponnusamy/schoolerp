@@ -1,15 +1,28 @@
-import { neon } from "@neondatabase/serverless"
-import { type NextRequest, NextResponse } from "next/server"
+import { type NextRequest } from "next/server"
+import { sql } from "@/lib/db"
 
-const sql = neon(process.env.DATABASE_URL!)
-
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
   try {
-    const classId = params.id
+    const { id: classId } = await context.params
 
-    const students = await sql`
-      SELECT 
+    if (!classId) {
+      return Response.json(
+        { error: "Class ID is required" },
+        { status: 400 }
+      )
+    }
+
+    const students = await sql(
+      `SELECT 
         s.*,
+        u.full_name,
+        u.email,
+        u.phone,
+        c.class_name,
+        c.section,
         COALESCE(tr.route_name, 'No Transport') as transport_route,
         CASE 
           WHEN f.status = 'paid' THEN 'Paid'
@@ -17,16 +30,21 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
           ELSE 'Not Set'
         END as fee_status
       FROM students s
-      LEFT JOIN student_transport st ON s.id = st.student_id
-      LEFT JOIN transport_routes tr ON st.route_id = tr.id
+      JOIN users u ON s.user_id = u.id
+      JOIN classes c ON s.class_id = c.id
+      LEFT JOIN transport_routes tr ON s.transport_route_id = tr.id
       LEFT JOIN fees f ON s.id = f.student_id AND f.academic_year = '2024-25' AND f.term = 'Q1'
-      WHERE s.class_id = ${classId} AND s.status = 'active'
-      ORDER BY s.name
-    `
+      WHERE s.class_id = ? AND s.status = 'active'
+      ORDER BY u.full_name`,
+      [classId]
+    )
 
-    return NextResponse.json(students)
+    return Response.json(students)
   } catch (error) {
     console.error("Error fetching class students:", error)
-    return NextResponse.json({ error: "Failed to fetch class students" }, { status: 500 })
+    return Response.json(
+      { error: "Failed to fetch class students" },
+      { status: 500 }
+    )
   }
 }

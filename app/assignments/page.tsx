@@ -112,7 +112,7 @@ export default function AssignmentsPage() {
       const response = await fetch(`/api/subjects/by-class?classId=${classId}`)
       if (response.ok) {
         const data = await response.json()
-        setSubjects(data.subjects || [])
+        setSubjects(data || [])
       }
     } catch (error) {
       console.error("Error fetching subjects:", error)

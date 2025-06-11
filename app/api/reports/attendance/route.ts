@@ -1,26 +1,30 @@
-import { NextResponse } from "next/server"
+import { type NextRequest } from "next/server"
 import { sql } from "@/lib/db"
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const attendanceData = await sql`
-      SELECT 
+    const attendanceData = await sql(
+      `SELECT 
         a.date,
-        c.class_name || ' - ' || c.section as class,
-        COUNT(CASE WHEN a.status = 'present' THEN 1 END) as present,
-        COUNT(CASE WHEN a.status = 'absent' THEN 1 END) as absent,
-        ROUND(COUNT(CASE WHEN a.status = 'present' THEN 1 END) * 100.0 / COUNT(*), 1) as percentage
+        c.class_name,
+        c.section,
+        COUNT(DISTINCT a.student_id) as total_students,
+        SUM(CASE WHEN a.status = 'present' THEN 1 ELSE 0 END) as present_count,
+        SUM(CASE WHEN a.status = 'absent' THEN 1 ELSE 0 END) as absent_count,
+        SUM(CASE WHEN a.status = 'late' THEN 1 ELSE 0 END) as late_count
       FROM attendance a
       JOIN students s ON a.student_id = s.id
       JOIN classes c ON s.class_id = c.id
       GROUP BY a.date, c.class_name, c.section
-      ORDER BY a.date DESC
-      LIMIT 50
-    `
+      ORDER BY a.date DESC, c.class_name, c.section`
+    )
 
-    return NextResponse.json({ data: attendanceData })
+    return Response.json(attendanceData)
   } catch (error) {
-    console.error("Error fetching attendance report:", error)
-    return NextResponse.json({ error: "Failed to fetch attendance report" }, { status: 500 })
+    console.error("Error fetching attendance reports:", error)
+    return Response.json(
+      { error: "Failed to fetch attendance reports" },
+      { status: 500 }
+    )
   }
 }

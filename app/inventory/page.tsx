@@ -28,6 +28,7 @@ interface InventoryItem {
   supplier: string
   min_stock_level: number
   stock_status: string
+  quantity_available: number
 }
 
 export default function InventoryPage() {
@@ -62,7 +63,7 @@ export default function InventoryPage() {
 
       if (response.ok) {
         const data = await response.json()
-        setInventory(data.inventory || [])
+        setInventory(data)
       } else {
         throw new Error("Failed to fetch inventory")
       }
@@ -84,8 +85,7 @@ export default function InventoryPage() {
         !newItem.category ||
         !newItem.total_quantity ||
         !newItem.unit_price ||
-        !newItem.supplier ||
-        !newItem.min_stock_level
+        !newItem.supplier
       ) {
         toast({
           title: "Error",
@@ -101,15 +101,18 @@ export default function InventoryPage() {
       const itemCode = `${categoryPrefix}${randomNum}`
 
       const itemData = {
-        ...newItem,
+        item_name: newItem.item_name,
         item_code: itemCode,
-        total_quantity: Number.parseInt(newItem.total_quantity),
-        unit_price: Number.parseFloat(newItem.unit_price),
-        min_stock_level: Number.parseInt(newItem.min_stock_level),
+        category: newItem.category,
+        description: newItem.description,
+        total_quantity: Number(newItem.total_quantity),
+        unit_price: Number(newItem.unit_price),
+        supplier: newItem.supplier,
+        status: "active"
       }
 
       // Validate numeric values
-      if (isNaN(itemData.total_quantity) || isNaN(itemData.unit_price) || isNaN(itemData.min_stock_level)) {
+      if (isNaN(itemData.total_quantity) || isNaN(itemData.unit_price)) {
         toast({
           title: "Error",
           description: "Please enter valid numeric values",
@@ -118,7 +121,7 @@ export default function InventoryPage() {
         return
       }
 
-      if (itemData.total_quantity < 0 || itemData.unit_price < 0 || itemData.min_stock_level < 0) {
+      if (itemData.total_quantity < 0 || itemData.unit_price < 0) {
         toast({
           title: "Error",
           description: "Values cannot be negative",
@@ -186,8 +189,8 @@ export default function InventoryPage() {
   const lowStockItems = inventory.filter((item) => item.stock_status === "low_stock").length
   const outOfStockItems = inventory.filter((item) => item.stock_status === "out_of_stock").length
   const totalValue = inventory.reduce(
-    (sum, item) => sum + (item.available_quantity + item.issued_quantity) * item.unit_price,
-    0,
+    (sum, item) => sum + item.quantity_available * (item.unit_price || 0),
+    0
   )
 
   const getStockStatusColor = (status: string) => {

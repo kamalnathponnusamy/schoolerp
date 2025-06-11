@@ -17,7 +17,6 @@ interface InventoryItem {
   status: string;
   created_at: string;
   stock_status: string;
-  total_quantity: number;
 }
 
 export async function GET() {
@@ -26,11 +25,10 @@ export async function GET() {
       SELECT 
         i.*,
         CASE 
-          WHEN i.quantity_available = 0 THEN 'out'
-          WHEN i.quantity_available <= 5 THEN 'low'
+          WHEN i.quantity_available = 0 THEN 'out_of_stock'
+          WHEN i.quantity_available <= 5 THEN 'low_stock'
           ELSE 'in_stock'
-        END as stock_status,
-        i.quantity_available as total_quantity
+        END as stock_status
       FROM inventory i
       ORDER BY i.category, i.item_name
     `);
@@ -62,9 +60,9 @@ export async function POST(request: Request) {
     } = body;
 
     // Validate required fields
-    if (!item_name || !item_code || !category) {
+    if (!item_name || !item_code || !category || !total_quantity || !unit_price) {
       return NextResponse.json(
-        { error: "Item name, code, and category are required" },
+        { error: "Item name, code, category, quantity, and unit price are required" },
         { status: 400 }
       );
     }
@@ -82,7 +80,8 @@ export async function POST(request: Request) {
       );
     }
 
-    await sql(
+    // Insert the new inventory item
+    const result = await sql(
       `INSERT INTO inventory (
         item_name, item_code, category, description,
         quantity_available, unit_price, supplier_name,
@@ -93,8 +92,8 @@ export async function POST(request: Request) {
         item_code,
         category,
         description || null,
-        total_quantity || 0,
-        unit_price || null,
+        total_quantity,
+        unit_price,
         supplier || null,
         purchase_date || null,
         expiry_date || null,
@@ -103,9 +102,15 @@ export async function POST(request: Request) {
       ]
     );
 
-    return NextResponse.json({ message: "Inventory item created successfully" });
+    return NextResponse.json({ 
+      message: "Inventory item created successfully",
+      id: (result as any).insertId 
+    });
   } catch (error) {
     console.error("Error creating inventory item:", error);
-    return NextResponse.json({ error: "Failed to create inventory item" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to create inventory item" }, 
+      { status: 500 }
+    );
   }
 }

@@ -43,17 +43,22 @@ export async function POST(request: NextRequest) {
     // Generate route code
     const routeCode = route_name.substring(0, 3).toUpperCase() + Math.floor(Math.random() * 1000)
 
-    const result = await sql`
-      INSERT INTO transport_routes (
+    // Insert the new route
+    await sql(
+      `INSERT INTO transport_routes (
         route_name, route_code, pickup_points, driver_name, 
         driver_phone, vehicle_number, capacity, monthly_fee
-      ) VALUES (
-        ${route_name}, ${routeCode}, ${pickup_points}, ${driver_name},
-        ${driver_phone}, ${vehicle_number}, ${capacity}, ${monthly_fee}
-      ) RETURNING *
-    `
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [route_name, routeCode, pickup_points, driver_name, driver_phone, vehicle_number, capacity, monthly_fee]
+    )
 
-    return NextResponse.json({ route: result[0], message: "Transport route created successfully" })
+    // Get the inserted record
+    const [newRoute] = await sql<TransportRoute>(
+      `SELECT * FROM transport_routes WHERE route_code = ?`,
+      [routeCode]
+    )
+
+    return NextResponse.json({ route: newRoute, message: "Transport route created successfully" })
   } catch (error) {
     console.error("Error creating transport route:", error)
     return NextResponse.json({ error: "Failed to create transport route" }, { status: 500 })

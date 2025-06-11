@@ -4,24 +4,24 @@ import { sql } from "@/lib/db"
 export async function GET() {
   try {
     // Get total collected
-    const collectedResult = await sql`
-      SELECT SUM(paid_amount) as total_collected
-      FROM fees
-    `
+    const collectedResult = await sql(
+      `SELECT COALESCE(SUM(paid_amount), 0) as total_collected
+      FROM fees`
+    )
 
     // Get total pending
-    const pendingResult = await sql`
-      SELECT SUM(total_amount - paid_amount) as total_pending
+    const pendingResult = await sql(
+      `SELECT COALESCE(SUM(total_amount - paid_amount), 0) as total_pending
       FROM fees
-      WHERE status = 'pending'
-    `
+      WHERE status = 'pending'`
+    )
 
     // Get total students
-    const studentsResult = await sql`
-      SELECT COUNT(*) as total_students
+    const studentsResult = await sql(
+      `SELECT COUNT(*) as total_students
       FROM students
-      WHERE status = 'active'
-    `
+      WHERE status = 'active'`
+    )
 
     // Calculate collection rate
     const totalCollected = Number.parseFloat(collectedResult[0].total_collected || 0)

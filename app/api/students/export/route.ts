@@ -1,95 +1,95 @@
+import { type NextRequest } from "next/server"
 import { sql } from "@/lib/db"
-import { type NextRequest, NextResponse } from "next/server"
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const format = searchParams.get("format") || "json"
 
-    const students = await sql`
-      SELECT 
+    const students = await sql(
+      `SELECT 
         s.student_id,
         s.admission_number,
-        u.full_name as name,
+        u.full_name,
         u.email,
         u.phone,
         u.date_of_birth,
+        u.gender,
         u.address,
         c.class_name,
         c.section,
-        s.father_name,
-        s.mother_name,
-        s.guardian_phone,
-        s.blood_group,
-        s.transport_opted,
-        tr.route_name as transport_route,
-        s.admission_date,
-        s.status
-      FROM students s 
-      LEFT JOIN users u ON s.user_id = u.id
-      LEFT JOIN classes c ON s.class_id = c.id 
+        COALESCE(tr.route_name, 'No Transport') as transport_route,
+        CASE 
+          WHEN f.status = 'paid' THEN 'Paid'
+          WHEN f.status = 'pending' THEN 'Pending'
+          ELSE 'Not Set'
+        END as fee_status,
+        s.status,
+        s.created_at,
+        s.updated_at
+      FROM students s
+      JOIN users u ON s.user_id = u.id
+      JOIN classes c ON s.class_id = c.id
       LEFT JOIN transport_routes tr ON s.transport_route_id = tr.id
+      LEFT JOIN fees f ON s.id = f.student_id AND f.academic_year = '2024-25' AND f.term = 'Q1'
       WHERE s.status = 'active'
-      ORDER BY u.full_name
-    `
+      ORDER BY u.full_name`
+    )
 
     if (format === "csv") {
       const headers = [
         "Student ID",
         "Admission Number",
-        "Name",
+        "Full Name",
         "Email",
         "Phone",
         "Date of Birth",
+        "Gender",
         "Address",
         "Class",
         "Section",
-        "Father's Name",
-        "Mother's Name",
-        "Guardian Phone",
-        "Blood Group",
-        "Transport Opted",
         "Transport Route",
-        "Admission Date",
+        "Fee Status",
         "Status",
+        "Created At",
+        "Updated At"
       ]
 
       const csvContent = [
         headers.join(","),
-        ...students.map((student) =>
-          [
-            student.student_id,
-            student.admission_number,
-            `"${student.name}"`,
-            student.email,
-            student.phone,
-            student.date_of_birth,
-            `"${student.address}"`,
-            student.class_name,
-            student.section,
-            `"${student.father_name || ""}"`,
-            `"${student.mother_name || ""}"`,
-            student.guardian_phone || "",
-            student.blood_group || "",
-            student.transport_opted ? "Yes" : "No",
-            `"${student.transport_route || ""}"`,
-            student.admission_date,
-            student.status,
-          ].join(","),
-        ),
+        ...students.map(student => [
+          student.student_id,
+          student.admission_number,
+          student.full_name,
+          student.email,
+          student.phone,
+          student.date_of_birth,
+          student.gender,
+          student.address,
+          student.class_name,
+          student.section,
+          student.transport_route,
+          student.fee_status,
+          student.status,
+          student.created_at,
+          student.updated_at
+        ].join(","))
       ].join("\n")
 
-      return new NextResponse(csvContent, {
+      return new Response(csvContent, {
         headers: {
           "Content-Type": "text/csv",
-          "Content-Disposition": "attachment; filename=students.csv",
-        },
+          "Content-Disposition": "attachment; filename=students.csv"
+        }
       })
     }
 
-    return NextResponse.json(students)
+    return Response.json(students)
   } catch (error) {
     console.error("Error exporting students:", error)
-    return NextResponse.json({ error: "Failed to export students" }, { status: 500 })
+    return Response.json(
+      { error: "Failed to export students" },
+      { status: 500 }
+    )
   }
 }

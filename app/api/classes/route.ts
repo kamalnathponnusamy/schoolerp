@@ -32,24 +32,16 @@ export async function GET() {
     `)
 
     // Calculate summary statistics
-    const totalClasses = classes.length
-    const totalSections = new Set(classes.map(c => `${c.class_name}-${c.section}`)).size
-    const totalStudents = classes.reduce((sum, c) => sum + Number(c.student_count), 0)
+    const summary = {
+      totalClasses: classes.length,
+      totalSections: new Set(classes.map(c => c.class_name)).size,
+      totalStudents: classes.reduce((sum, c) => sum + c.student_count, 0)
+    }
 
-    return NextResponse.json({
-      classes,
-      summary: {
-        totalClasses,
-        totalSections,
-        totalStudents
-      }
-    })
+    return NextResponse.json({ classes, summary })
   } catch (error) {
     console.error("Error fetching classes:", error)
-    return NextResponse.json(
-      { error: "Failed to fetch classes" },
-      { status: 500 }
-    )
+    return NextResponse.json({ classes: [], summary: { totalClasses: 0, totalSections: 0, totalStudents: 0 } })
   }
 }
 
