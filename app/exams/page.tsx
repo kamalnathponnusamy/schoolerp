@@ -604,8 +604,10 @@ export default function ExamsPage() {
                           {exam.start_time && exam.end_time && (
                             <span className="text-sm">
                               {Math.round(
-                                (new Date(`2000-01-01T${exam.end_time}`) - new Date(`2000-01-01T${exam.start_time}`)) /
-                                  (1000 * 60),
+                                (
+                                  new Date(`2000-01-01T${exam.end_time}`).getTime() -
+                                  new Date(`2000-01-01T${exam.start_time}`).getTime()
+                                ) / (1000 * 60)
                               )}{" "}
                               min
                             </span>
