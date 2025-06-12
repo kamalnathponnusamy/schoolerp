@@ -1,4 +1,4 @@
-import { type NextRequest } from "next/server"
+import { NextRequest } from "next/server"
 import { sql } from "@/lib/db"
 
 interface User {
