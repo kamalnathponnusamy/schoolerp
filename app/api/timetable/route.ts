@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const [result] = await sql<SqlResult[]>(
+    const [result] = await sql(
       `INSERT INTO timetable (day, time_slot, subject_id, teacher_id, class_id, room_number)
        VALUES (?, ?, ?, ?, ?, ?)
        RETURNING id`,
