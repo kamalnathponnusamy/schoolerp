@@ -1,6 +1,3 @@
-
-# test: deployment path fix
-
 name: Auto Deploy to Docker Server
 
 on:
