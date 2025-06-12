@@ -1,5 +1,4 @@
 name: Auto Deploy to Docker Server
-
 on:
   push:
     branches:
