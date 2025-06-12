@@ -1,4 +1,4 @@
-"use client"
+"use client"Add commentMore actions
 import { sql } from "@/lib/db"
 import ClassDetailsClient from "./ClassDetailsClient"
 
