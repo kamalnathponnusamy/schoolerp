@@ -1,6 +1,11 @@
 import { type NextRequest } from "next/server"
 import { sql } from "@/lib/db"
 
+interface SqlResult {
+  insertId: number
+  affectedRows: number
+}
+
 interface TimetableEntry {
   id: number
   class_id: number
@@ -17,21 +22,20 @@ interface TimetableEntry {
   teacher_name: string
 }
 
-interface SqlResult {
-  insertId: number
-  affectedRows: number
-}
-
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const classId = searchParams.get("classId")
+    const classId = searchParams.get("classId") || searchParams.get("class_id")
+    const teacherId = searchParams.get("teacher_id")
 
-    const timetable = await sql(
-      `SELECT 
+    console.log('Timetable API called with params:', { classId, teacherId })
+
+    let query = `
+      SELECT 
         t.id,
-        t.day,
-        t.time_slot,
+        t.day_of_week,
+        t.start_time,
+        t.end_time,
         t.subject_id,
         s.subject_name,
         t.teacher_id,
@@ -44,20 +48,26 @@ export async function GET(request: NextRequest) {
       JOIN subjects s ON t.subject_id = s.id
       JOIN users u ON t.teacher_id = u.id
       JOIN classes c ON t.class_id = c.id
-      WHERE t.class_id = ?
-      ORDER BY 
-        CASE t.day
-          WHEN 'Monday' THEN 1
-          WHEN 'Tuesday' THEN 2
-          WHEN 'Wednesday' THEN 3
-          WHEN 'Thursday' THEN 4
-          WHEN 'Friday' THEN 5
-          WHEN 'Saturday' THEN 6
-          WHEN 'Sunday' THEN 7
-        END,
-        t.time_slot`,
-      [classId]
-    )
+      WHERE 1=1
+    `
+    const params: any[] = []
+
+    if (classId) {
+      query += " AND t.class_id = ?"
+      params.push(classId)
+    }
+
+    if (teacherId) {
+      query += " AND t.teacher_id = ?"
+      params.push(teacherId)
+    }
+
+    query += " ORDER BY t.day_of_week, t.start_time"
+
+    console.log('Executing query:', query, 'with params:', params)
+
+    const timetable = await sql<TimetableEntry[]>(query, params)
+    console.log('Query result:', timetable)
 
     return Response.json(timetable)
   } catch (error) {
@@ -71,23 +81,24 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { day, time_slot, subject_id, teacher_id, class_id, room_number } = await request.json()
+    const { day_of_week, start_time, end_time, subject_id, teacher_id, class_id, room_number } = await request.json()
 
-    if (!day || !time_slot || !subject_id || !teacher_id || !class_id) {
+    if (!day_of_week || !start_time || !end_time || !subject_id || !teacher_id || !class_id) {
       return Response.json(
         { error: "Missing required fields" },
         { status: 400 }
       )
     }
 
-    const [result] = await sql(
-      `INSERT INTO timetable (day, time_slot, subject_id, teacher_id, class_id, room_number)
-       VALUES (?, ?, ?, ?, ?, ?)
-       RETURNING id`,
-      [day, time_slot, subject_id, teacher_id, class_id, room_number]
+    const result = await sql(
+      `INSERT INTO timetable (day_of_week, start_time, end_time, subject_id, teacher_id, class_id, room_number)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [day_of_week, start_time, end_time, subject_id, teacher_id, class_id, room_number]
     )
 
-    return Response.json({ message: "Timetable entry created successfully", id: result.insertId })
+    const insertId = (result as any).insertId
+
+    return Response.json({ message: "Timetable entry created successfully", id: insertId })
   } catch (error) {
     console.error("Error creating timetable entry:", error)
     return Response.json(

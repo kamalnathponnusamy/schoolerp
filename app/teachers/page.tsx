@@ -25,6 +25,7 @@ interface Teacher {
   salary: number
   status: string
   assigned_classes: string
+  joining_date: string
 }
 
 export default function TeachersPage() {
@@ -42,6 +43,8 @@ export default function TeachersPage() {
     qualification: "",
     experience_years: 0,
     salary: 0,
+    assigned_classes: "",
+    joining_date: new Date().toISOString().split('T')[0],
   })
 
   useEffect(() => {
@@ -94,6 +97,8 @@ export default function TeachersPage() {
           qualification: "",
           experience_years: 0,
           salary: 0,
+          assigned_classes: "",
+          joining_date: new Date().toISOString().split('T')[0],
         })
         fetchTeachers()
       } else {
@@ -213,6 +218,25 @@ export default function TeachersPage() {
                     type="number"
                     value={newTeacher.salary}
                     onChange={(e) => setNewTeacher({ ...newTeacher, salary: Number.parseInt(e.target.value) })}
+                    required
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="assigned_classes">Assigned Classes (comma separated)</Label>
+                  <Input
+                    id="assigned_classes"
+                    value={newTeacher.assigned_classes}
+                    onChange={(e) => setNewTeacher({ ...newTeacher, assigned_classes: e.target.value })}
+                    placeholder="e.g., 10A, 11B"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="joining_date">Joining Date</Label>
+                  <Input
+                    id="joining_date"
+                    type="date"
+                    value={newTeacher.joining_date}
+                    onChange={(e) => setNewTeacher({ ...newTeacher, joining_date: e.target.value })}
                     required
                   />
                 </div>

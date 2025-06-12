@@ -23,7 +23,7 @@ import {
   Filter,
   RefreshCw,
 } from "lucide-react"
-import { format as dateFormat } from "date-fns"
+import { format } from "date-fns"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 
@@ -106,31 +106,28 @@ export default function ReportsPage() {
     }
   }
 
-  // <--- FIXED: renamed parameter from format to reportFormat and imported dateFormat
-  const generateReport = async (type: string, reportFormat: "pdf" | "excel") => {
+  const generateReport = async (type: string, format: "pdf" | "excel") => {
     try {
       const params = new URLSearchParams({
         type,
-        format: reportFormat,
-        ...(dateFrom && { dateFrom: dateFormat(dateFrom, "yyyy-MM-dd") }),
-        ...(dateTo && { dateTo: dateFormat(dateTo, "yyyy-MM-dd") }),
+        format,
+        ...(dateFrom && { dateFrom: format(dateFrom, "yyyy-MM-dd") }),
+        ...(dateTo && { dateTo: format(dateTo, "yyyy-MM-dd") }),
         ...(selectedClass && { class: selectedClass }),
       })
 
       // Generate actual report content
-      const reportContent = generateReportContent(type, reportFormat)
+      const reportContent = generateReportContent(type, format)
 
       const blob = new Blob([reportContent], {
         type:
-          reportFormat === "pdf"
-            ? "application/pdf"
-            : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          format === "pdf" ? "application/pdf" : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       })
 
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement("a")
       a.href = url
-      a.download = `${type}_report_${new Date().toISOString().split("T")[0]}.${reportFormat === "pdf" ? "pdf" : "xlsx"}`
+      a.download = `${type}_report_${new Date().toISOString().split("T")[0]}.${format === "pdf" ? "pdf" : "xlsx"}`
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
@@ -140,11 +137,11 @@ export default function ReportsPage() {
     }
   }
 
-  const generateReportContent = (type: string, reportFormat: string) => {
+  const generateReportContent = (type: string, format: string) => {
     const data = reportData[type as keyof ReportData] || []
     let content = `${type.toUpperCase()} REPORT\n`
     content += `Generated on: ${new Date().toLocaleDateString()}\n`
-    content += `Format: ${reportFormat}\n\n`
+    content += `Format: ${format}\n\n`
 
     if (data.length > 0) {
       content += "DATA:\n"
@@ -221,7 +218,7 @@ export default function ReportsPage() {
                     <PopoverTrigger asChild>
                       <Button variant="outline" className="w-full justify-start text-left font-normal">
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {dateFrom ? dateFormat(dateFrom, "PPP") : "Pick a date"}
+                        {dateFrom ? format(dateFrom, "PPP") : "Pick a date"}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0">
@@ -235,7 +232,7 @@ export default function ReportsPage() {
                     <PopoverTrigger asChild>
                       <Button variant="outline" className="w-full justify-start text-left font-normal">
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {dateTo ? dateFormat(dateTo, "PPP") : "Pick a date"}
+                        {dateTo ? format(dateTo, "PPP") : "Pick a date"}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0">

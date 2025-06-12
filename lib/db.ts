@@ -73,7 +73,9 @@ export async function sql<T = any>(query: string | { sql: string; values?: any[]
     }
 
     // Execute query with proper parameter handling
-    const [rows] = await connection.execute(sqlQuery, queryParams || []);
+    const rawResult = await connection.execute(sqlQuery, queryParams || []);
+    console.log('Raw result from connection.execute:', rawResult);
+    const [rows] = rawResult;
     return rows as T[];
   } catch (error) {
     console.error('Database query error:', error);

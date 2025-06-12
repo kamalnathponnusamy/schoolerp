@@ -129,9 +129,11 @@ export default function TimetablePage() {
         }
       }
 
-      const response = await fetch(`/api/timetable?${params}`)
+      console.log('Fetching timetable with params:', params.toString())
+      const response = await fetch(`/api/timetable?${params.toString()}`)
       if (response.ok) {
         const data = await response.json()
+        console.log('Received timetable data:', data)
         setTimetable(Array.isArray(data) ? data : [])
       } else {
         throw new Error("Failed to fetch timetable")
@@ -154,7 +156,7 @@ export default function TimetablePage() {
       const response = await fetch("/api/classes")
       if (response.ok) {
         const data = await response.json()
-        setClasses(Array.isArray(data) ? data : [])
+        setClasses(Array.isArray(data.classes) ? data.classes : [])
       } else {
         throw new Error("Failed to fetch classes")
       }
@@ -283,14 +285,24 @@ export default function TimetablePage() {
 
   const getTimetableGrid = () => {
     const grid: { [key: string]: TimetableEntry[] } = {}
+    console.log('Creating timetable grid with entries:', timetable)
 
     DAYS.forEach((day) => {
       TIME_SLOTS.forEach((time) => {
         const key = `${day.value}-${time}`
-        grid[key] = timetable.filter((entry) => entry.day_of_week === day.value && entry.start_time === time)
+        const entries = timetable.filter((entry) => {
+          const entryTimeFormatted = entry.start_time ? entry.start_time.substring(0, 5) : ''; // Extract HH:MM
+          const matches = entry.day_of_week === day.value && entryTimeFormatted === time
+          if (matches) {
+            console.log('Found matching entry:', entry, 'for key:', key)
+          }
+          return matches
+        })
+        grid[key] = entries
       })
     })
 
+    console.log('Final timetable grid:', grid)
     return grid
   }
 

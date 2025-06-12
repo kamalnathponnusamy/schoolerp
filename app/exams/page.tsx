@@ -99,7 +99,7 @@ export default function ExamsPage() {
       const response = await fetch("/api/classes")
       if (response.ok) {
         const data = await response.json()
-        setClasses(Array.isArray(data) ? data : [])
+        setClasses(Array.isArray(data.classes) ? data.classes : [])
       }
     } catch (error) {
       console.error("Error fetching classes:", error)
@@ -604,10 +604,8 @@ export default function ExamsPage() {
                           {exam.start_time && exam.end_time && (
                             <span className="text-sm">
                               {Math.round(
-                                (
-                                  new Date(`2000-01-01T${exam.end_time}`).getTime() -
-                                  new Date(`2000-01-01T${exam.start_time}`).getTime()
-                                ) / (1000 * 60)
+                                (Number(new Date(`2000-01-01T${exam.end_time}`).getTime()) - Number(new Date(`2000-01-01T${exam.start_time}`).getTime())) /
+                                  (1000 * 60),
                               )}{" "}
                               min
                             </span>

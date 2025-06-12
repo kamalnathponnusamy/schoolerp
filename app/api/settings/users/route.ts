@@ -1,7 +1,5 @@
 import { type NextRequest } from "next/server"
 import { sql } from "@/lib/db"
-import { NextResponse } from 'next/server'
-
 
 interface User {
   id: number

@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create the teacher record
-    const [teacherResult] = await sql(
+    const teacherResponse = await sql(
       `INSERT INTO teachers (
         teacher_id, name, subject, phone, email,
         assigned_classes, qualification, experience_years,
@@ -72,6 +72,10 @@ export async function POST(request: NextRequest) {
         salary, joining_date, photo_url, qr_code
       ]
     )
+    console.log("Teacher SQL Response:", teacherResponse)
+
+    // Assuming teacherResponse is an array where the first element contains insertId for INSERT operations
+    const teacherResult = Array.isArray(teacherResponse) ? teacherResponse[0] : teacherResponse;
 
     return Response.json({
       message: "Teacher created successfully",
