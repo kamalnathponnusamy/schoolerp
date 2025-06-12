@@ -23,9 +23,9 @@ jobs:
       - name: Deploy to Server
         run: |
           ssh root@165.232.188.143 "
-          echo 'WORKFLOW RUNNING IN /root/docker-stacks/schoolerp'
-          cd /root/docker-stacks/schoolerp &&
-          git pull origin main &&
-          docker-compose build --no-cache &&
-          docker-compose up -d
-         "
+            echo 'WORKFLOW RUNNING IN /root/docker-stacks/schoolerp'
+            cd /root/docker-stacks/schoolerp &&
+            git pull origin main &&
+            docker-compose build --no-cache &&
+            docker-compose up -d
+          "
