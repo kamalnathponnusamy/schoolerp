@@ -105,16 +105,9 @@ function StatCard({ title, value, icon: Icon, color, trend, trendValue, descript
             </div>
             {description && <p className="text-xs text-muted-foreground">{description}</p>}
           </div>
-<<<<<<< HEAD
-          <div className={`h-12 w-12 rounded-lg ${color} flex items-center justify-center`}>
-            <Icon className="h-6 w-6 text-white" />
-          </div>
-        </div>
-=======
           <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${color}`}>
             <Icon className="w-7 h-7 text-white" />
           </div>        </div>
->>>>>>> cf1d28f (Initial commit)
       </CardContent>
     </Card>
   )
@@ -227,12 +220,8 @@ export default function Dashboard() {
           </div>
 
           {/* Statistics Grid */}
-<<<<<<< HEAD
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
-=======
           {/*<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">*/}
            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6"> 
->>>>>>> cf1d28f (Initial commit)
             <StatCard
               title="Total Students"
               value={stats.totalStudents}
@@ -637,10 +626,6 @@ export default function Dashboard() {
           </Tabs>
         </div>
       </div>
-<<<<<<< HEAD
-    </div>
-=======
     // </div>
->>>>>>> cf1d28f (Initial commit)
   )
 }
