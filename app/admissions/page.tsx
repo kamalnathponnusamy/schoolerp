@@ -309,7 +309,11 @@ export default function Admissions() {
   return (
     <Suspense
       fallback={
+<<<<<<< HEAD
         <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 md:p-6 lg:ml-64">
+=======
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 md:p-6">
+>>>>>>> cf1d28f (Initial commit)
           <div className="max-w-7xl mx-auto">
             <div className="flex items-center justify-center h-[50vh]">
               <div className="text-center">

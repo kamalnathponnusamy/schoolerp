@@ -318,7 +318,11 @@ export default function TimetablePage() {
 
   return (
     <div className="min-h-screen bg-background">
+<<<<<<< HEAD
       <div className="lg:pl-64">
+=======
+      {/* <div className="lg:pl-64"> */}
+>>>>>>> cf1d28f (Initial commit)
         <div className="p-6 space-y-6">
           {/* Error Alert */}
           {error && (
@@ -635,7 +639,11 @@ export default function TimetablePage() {
             </Card>
           </div>
         </div>
+<<<<<<< HEAD
       </div>
+=======
+      {/* </div> */}
+>>>>>>> cf1d28f (Initial commit)
     </div>
   )
 }
