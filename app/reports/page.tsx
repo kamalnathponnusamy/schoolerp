@@ -568,11 +568,7 @@ export default function ReportsPage() {
             </TabsContent>
           </Tabs>
         </div>
-<<<<<<< HEAD
-      </div>
-=======
       {/* </div> */}
->>>>>>> cf1d28f (Initial commit)
     </div>
   )
 }

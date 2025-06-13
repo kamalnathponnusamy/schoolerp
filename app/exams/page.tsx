@@ -642,11 +642,7 @@ export default function ExamsPage() {
             </CardContent>
           </Card>
         </div>
-<<<<<<< HEAD
-      </div>
-=======
       {/* </div> */}
->>>>>>> cf1d28f (Initial commit)
     </div>
   )
 }
