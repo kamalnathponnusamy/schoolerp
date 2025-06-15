@@ -10,11 +10,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: 'Missing fields' }, { status: 400 });
     }
 
-    await sql`
-      INSERT INTO push_tokens (user_id, role, token)
-      VALUES (${user_id}, ${role}, ${push_token})
-      ON DUPLICATE KEY UPDATE token = ${push_token}, updated_at = NOW()
-    `;
+    await sql(
+  `INSERT INTO push_tokens (user_id, role, token)
+   VALUES (?, ?, ?)
+   ON DUPLICATE KEY UPDATE token = ?, updated_at = NOW()`,
+  [user_id, role, push_token, push_token]
+);
+
 
     return NextResponse.json({ success: true });
   } catch (error) {
