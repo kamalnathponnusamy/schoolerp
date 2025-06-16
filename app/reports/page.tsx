@@ -193,7 +193,7 @@ export default function ReportsPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* <div className="lg:pl-64"> */}
+      <div className="lg:pl-64">
         <div className="p-6 space-y-6">
           {/* Header */}
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
@@ -564,7 +564,7 @@ export default function ReportsPage() {
             </TabsContent>
           </Tabs>
         </div>
-      {/* </div> */}
+      </div>
     </div>
   )
 }

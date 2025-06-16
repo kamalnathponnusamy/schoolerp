@@ -1,38 +1,67 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
+type UserRole = 'student' | 'teacher' | 'admin'
+type ProtectedRoutes = {
+  [key: string]: UserRole[]
+}
+
+// Define protected routes and their allowed roles
+const protectedRoutes: ProtectedRoutes = {
+  '/student/dashboard': ['student'],
+  '/teacher/dashboard': ['teacher'],
+  '/admin/dashboard': ['admin'],
+}
+
 export function middleware(request: NextRequest) {
-  // Check if user is accessing protected routes
-  const protectedPaths = ["/dashboard", "/admissions", "/students", "/teachers", "/admin"]
-  const isProtectedPath = protectedPaths.some((path) => request.nextUrl.pathname.startsWith(path))
+  const path = request.nextUrl.pathname
 
-  if (isProtectedPath) {
-    const sessionToken = request.cookies.get("session-token")
+  // Skip middleware for API routes and static files
+  if (path.startsWith('/api/') || path.includes('.')) {
+    return NextResponse.next()
+  }
 
-    if (!sessionToken) {
-      // Redirect to login if no session
-      return NextResponse.redirect(new URL("/", request.url))
+  // Check if the path is a protected route
+  const isProtectedRoute = Object.keys(protectedRoutes).some(route => path.startsWith(route))
+  
+  if (isProtectedRoute) {
+    // Get user from cookie
+    const userCookie = request.cookies.get('user')
+    
+    // If no user cookie exists, redirect to login
+    if (!userCookie?.value) {
+      const loginUrl = new URL('/', request.url)
+      loginUrl.searchParams.set('redirect', path)
+      return NextResponse.redirect(loginUrl)
     }
 
     try {
-      // Validate the session token
-      const sessionData = JSON.parse(Buffer.from(sessionToken.value, "base64").toString())
+      const userData = JSON.parse(userCookie.value)
+      const userRole = userData.role as UserRole
 
-      // Check if session is not expired (24 hours)
-      const sessionAge = Date.now() - sessionData.timestamp
-      const maxAge = 24 * 60 * 60 * 1000 // 24 hours in milliseconds
-
-      if (sessionAge > maxAge) {
-        // Session expired, redirect to login
-        const response = NextResponse.redirect(new URL("/", request.url))
-        response.cookies.delete("session-token")
-        return response
+      // Check if user has access to the requested route
+      const route = Object.keys(protectedRoutes).find(route => path.startsWith(route))
+      if (route && !protectedRoutes[route].includes(userRole)) {
+        // Redirect to appropriate dashboard based on role
+        switch (userRole) {
+          case 'student':
+            return NextResponse.redirect(new URL('/student/dashboard', request.url))
+          case 'teacher':
+            return NextResponse.redirect(new URL('/teacher/dashboard', request.url))
+          case 'admin':
+            return NextResponse.redirect(new URL('/admin/dashboard', request.url))
+          default:
+            return NextResponse.redirect(new URL('/', request.url))
+        }
       }
+
+      // User is authenticated and authorized, proceed with the request
+      return NextResponse.next()
     } catch (error) {
-      // Invalid session token, redirect to login
-      const response = NextResponse.redirect(new URL("/", request.url))
-      response.cookies.delete("session-token")
-      return response
+      // If there's an error parsing user data, redirect to login
+      const loginUrl = new URL('/', request.url)
+      loginUrl.searchParams.set('redirect', path)
+      return NextResponse.redirect(loginUrl)
     }
   }
 
@@ -40,5 +69,9 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/admissions/:path*", "/students/:path*", "/teachers/:path*", "/admin/:path*"],
+  matcher: [
+    '/student/dashboard/:path*',
+    '/teacher/dashboard/:path*',
+    '/admin/dashboard/:path*',
+  ],
 }

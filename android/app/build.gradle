@@ -16,8 +16,17 @@ android {
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            storeFile file("C:/Users/<YourUser>/keystores/schoolerp.jks") // Replace with your keystore path
+            storePassword "YOUR_KEYSTORE_PASSWORD"    // Replace with your keystore password
+            keyAlias "schoolerpkey"              // Replace with your key alias
+            keyPassword "YOUR_KEY_PASSWORD"        // Replace with your key password
+        }
+    }
     buildTypes {
         release {
+            signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

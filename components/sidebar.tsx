@@ -21,6 +21,7 @@ import {
   Clock,
   Star,
   Shield,
+  BookMarked,
 } from "lucide-react"
 
 const navigation = [
@@ -31,6 +32,7 @@ const navigation = [
     color: "text-blue-600",
     bgColor: "bg-blue-50",
     description: "Overview & Analytics",
+    roles: ["admin", "teacher"]
   },
   {
     name: "Students",
@@ -39,6 +41,7 @@ const navigation = [
     color: "text-green-600",
     bgColor: "bg-green-50",
     description: "Student Management",
+    roles: ["admin"]
   },
   {
     name: "Teachers",
@@ -47,6 +50,7 @@ const navigation = [
     color: "text-purple-600",
     bgColor: "bg-purple-50",
     description: "Staff Directory",
+    roles: ["admin"]
   },
   {
     name: "Classes",
@@ -55,6 +59,7 @@ const navigation = [
     color: "text-orange-600",
     bgColor: "bg-orange-50",
     description: "Class Management",
+    roles: ["admin"]
   },
   {
     name: "Timetable",
@@ -63,6 +68,25 @@ const navigation = [
     color: "text-indigo-600",
     bgColor: "bg-indigo-50",
     description: "Schedule & Timing",
+    roles: ["admin"]
+  },
+  {
+    name: "Attendance",
+    href: "/attendance",
+    icon: Calendar,
+    color: "text-pink-600",
+    bgColor: "bg-pink-50",
+    description: "Mark Attendance",
+    roles: ["admin", "teacher"]
+  },
+  {
+    name: "Homework",
+    href: "/homework",
+    icon: BookMarked,
+    color: "text-cyan-600",
+    bgColor: "bg-cyan-50",
+    description: "Assign & Track Homework",
+    roles: ["admin", "teacher"]
   },
   {
     name: "Transport",
@@ -71,6 +95,7 @@ const navigation = [
     color: "text-yellow-600",
     bgColor: "bg-yellow-50",
     description: "Route Management",
+    roles: ["admin"]
   },
   {
     name: "Inventory",
@@ -79,6 +104,7 @@ const navigation = [
     color: "text-red-600",
     bgColor: "bg-red-50",
     description: "Stock & Assets",
+    roles: ["admin"]
   },
   {
     name: "Exams",
@@ -87,6 +113,7 @@ const navigation = [
     color: "text-pink-600",
     bgColor: "bg-pink-50",
     description: "Examination System",
+    roles: ["admin"]
   },
   {
     name: "Reports",
@@ -95,6 +122,7 @@ const navigation = [
     color: "text-teal-600",
     bgColor: "bg-teal-50",
     description: "Analytics & Reports",
+    roles: ["admin"]
   },
   {
     name: "Settings",
@@ -103,6 +131,7 @@ const navigation = [
     color: "text-gray-600",
     bgColor: "bg-gray-50",
     description: "System Configuration",
+    roles: ["admin"]
   },
 ]
 
@@ -183,6 +212,11 @@ export function Sidebar() {
           <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
             {navigation.map((item) => {
               const isActive = pathname === item.href
+              // Check if user has access to this navigation item
+              const hasAccess = user?.role && item.roles.includes(user.role)
+              
+              if (!hasAccess) return null
+
               return (
                 <Link
                   key={item.name}
