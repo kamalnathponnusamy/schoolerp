@@ -24,6 +24,12 @@ jobs:
           ssh root@165.232.188.143 "
             echo 'WORKFLOW RUNNING IN /root/docker-stacks/schoolerp'
             cd /root/docker-stacks/schoolerp &&
+            docker-compose down --remove-orphans || true &&
+            docker system prune -af || true &&
+            docker volume prune -f || true &&
+            git config user.email 'sales@britexcbe.com' &&
+            git config user.name 'Vkysrn-ux' &&
+            git config pull.rebase false &&
             git pull origin main &&
             docker-compose build --no-cache &&
             docker-compose up -d
