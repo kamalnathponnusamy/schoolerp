@@ -1,7 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@/lib/db";
-import { NextRequest } from "next/server";
 
+// GET /api/homework/by-class/[classId]
 export async function GET(
   request: NextRequest,
   context: { params: { classId: string } }
@@ -27,7 +27,7 @@ export async function GET(
         WHERE h.class_id = ?
         ORDER BY h.created_at DESC
       `,
-      values: [classId]
+      values: [classId],
     });
 
     return NextResponse.json({ homework });
