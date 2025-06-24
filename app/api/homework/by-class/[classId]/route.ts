@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@/lib/db";
 
-// GET /api/homework/by-class/[classId]
 export async function GET(
   request: NextRequest,
-  context: { params: { classId: string } }
+  { params }: { params: { classId: string } }
 ) {
   try {
-    const classId = context.params.classId;
+    const { classId } = params;
 
     const homework = await sql({
       sql: `
@@ -27,7 +26,7 @@ export async function GET(
         WHERE h.class_id = ?
         ORDER BY h.created_at DESC
       `,
-      values: [classId],
+      values: [classId]
     });
 
     return NextResponse.json({ homework });
