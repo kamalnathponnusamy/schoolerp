@@ -1,13 +1,14 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { sql } from "@/lib/db";
+import { NextRequest } from "next/server";
 
 export async function GET(
-  req: NextRequest,
+  request: NextRequest,
   context: { params: { classId: string } }
 ) {
-  const { classId } = context.params;
-
   try {
+    const classId = context.params.classId;
+
     const homework = await sql({
       sql: `
         SELECT 
