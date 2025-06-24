@@ -1,0 +1,407 @@
+-- Text to SQL original prompt:
+-- can you please share me the create query for all tables with index scripts along with foreign key constraints and sequence generation also so I can run the query in oracle db, complete database tables has to be there in create script...I can see the query generation get stopped while creating index so please complete everything and give final queries
+-- 
+-- Create sequences
+CREATE SEQUENCE attendance_id_seq START WITH 1 INCREMENT BY 1;
+CREATE SEQUENCE class_subject_teacher_id_seq START WITH 1 INCREMENT BY 1;
+CREATE SEQUENCE classes_id_seq START WITH 1 INCREMENT BY 1;
+CREATE SEQUENCE exam_results_id_seq START WITH 1 INCREMENT BY 1;
+CREATE SEQUENCE exams_id_seq START WITH 1 INCREMENT BY 1;
+CREATE SEQUENCE fee_payments_id_seq START WITH 1 INCREMENT BY 1;
+CREATE SEQUENCE fees_id_seq START WITH 1 INCREMENT BY 1;
+CREATE SEQUENCE homework_id_seq START WITH 1 INCREMENT BY 1;
+CREATE SEQUENCE inventory_id_seq START WITH 1 INCREMENT BY 1;
+CREATE SEQUENCE inventory_transactions_id_seq START WITH 1 INCREMENT BY 1;
+CREATE SEQUENCE inventory_usage_id_seq START WITH 1 INCREMENT BY 1;
+CREATE SEQUENCE notifications_id_seq START WITH 1 INCREMENT BY 1;
+CREATE SEQUENCE student_remarks_id_seq START WITH 1 INCREMENT BY 1;
+CREATE SEQUENCEstudent_transport_id_seq START WITH 1 INCREMENT BY 1;
+CREATE SEQUENCE students_id_seq START WITH 1 INCREMENT BY 1;
+CREATE SEQUENCE subjects_id_seq START WITH 1 INCREMENT BY 1;
+CREATE SEQUENCE system_settings_id_sq START WITH 1 INCREMENT BY 1;
+CREATE SEQUENCE teachers_id_seq START WITH 1 INCREMENT BY 1;
+CREATE SEQUENCE timetable_id_seq START WITH 1 INCREMENT BY 1;
+CREATE SEQUENCE transport_routes_id_seq START WITH 1 INCREMENT BY 1;
+CREATE SEQUENCE users_id_seq START WITH 1 INCREMENT BY 1;
+
+-- Create tables
+CREATE TABLE users (
+    id INTEGER DEFAULT users_id_seq.NEXTVAL PRIMARY KEY,
+    username VARCHAR2(50) UNIQUE NOT NULL,
+    email VARCHAR2(100) UNIQUE NOT NULL,
+    password_hash VARCHAR2(255) NOT NULL,
+    role VARCHAR2(20) NOT NULL CHECK (role IN ('admin', 'teacher', 'student')),
+    full_name VARCHAR2(100) NOT NULL,
+    phone VARCHAR2(15),
+    date_of_birth DATE,
+    address CLOB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE classes (
+    id INTEGER DEFAULT classes_id_seq.NEXTVAL PRIMARY KEY,
+    class_name VARCHAR2(50) NOT NULL,
+    section VARCHAR2(10) NOT NULL,
+    class_teacher_id INTEGER,
+    academic_year VARCHAR2(10) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_class_teacher FOREIGN KEY (class_teacher_id) REFERENCES users(id)
+);
+
+CREATE TABLE subjects (
+    id INTEGER DEFAULT subjects_id_seq.NEXTVAL PRIMARY KEY,
+    subject_name VARCHAR2(100) NOT NULL,
+    subject_code VARCHAR2(20) UNIQUE NOT NULL,
+    description CLOB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE class_subject_teacher (
+    id INTEGER DEFAULT class_subject_teacher_id_seq.NEXTVAL PRIMARY KEY,
+    class_id INTEGER,
+    subject_id INTEGER,
+    user_id INTEGER,
+    academic_year VARCHAR2(20) DEFAULT '2024-25',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_cst_class FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE,
+    CONSTRAINT fk_cst_subject FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE,
+    CONSTRAINT fk_cst_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+    CONSTRAINT uk_cst_class_subject_year UNIQeE (class_id, subject_id, academic_year)
+);
+
+CREATE TABLE students (
+    id INTEGER DEFAULT students_id_seq.NEXTVAL PRIMARY KEY,
+    student_id VARCHAR2(20) UNIQUE NOT NULL,
+    user_id INTEGER,
+    class_id INTEGER,
+    admission_number VARCHAR2(50) UNIQUE NOT NULL,
+    admission_date DATE NOT NULL,
+    father_name VARCHAR2(100),
+    mother_name VARCHAR2(100),
+    guardian_phone ARCHAR2(15),
+    blood_group VARCHAR2(5),
+    transport_opted NUMBER(1) DEFAULT 0,
+    transport_route_id INTEGER,
+    fee_structure CLOB,
+    status VARCHAR2(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'graduated')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_student_user FOREIGN KEY (user_id) REFERENCES users(id),
+    CONSTRAINT fk_student_class FOREIGN KEY (class_id) REFERENCES classes(id)
+);
+
+CREATE TABLE teachers (
+    id INTEGER DEFAULT teachers_id_seq.NEXTVAL PRIMARY KEY,
+    teacher_id VARCHAR2(20) UNIQUE NOT NULL,
+    user_id INTEGER,
+    name VARCHAR2(100) NOT NULL,
+    subject VARCHAR2(50),
+    phone VARCHAR2(15),
+    email VARCHAR2(100) UNIQUE,
+    assigned_classes CLOB,
+    qualification VARCHAR2(100),
+    experience_years INTEGER DEFAULT 0,
+    salary NUMBER(10,2),
+    joining_date DATE DEFAULT CURRENT_DATE,
+    photo_url CLOB,
+    qr_code CLOB,
+    status VARCHAR2(20) DEFAULT 'active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_teacher_user FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE TABLE attendance (
+    id INTEGER DEFAULT attendance_id_seq.NEXTVAL PRIMARY KEY,
+    student_id INTEGER,
+    date DATE NOT NULL,
+    status VARCHAR2(20) NOT NULL CHECK (status IN ('present', 'absent', 'late', 'half_day')),
+    marked_by INTEGER,
+    remarks CLOB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uk_attendance_student_date UNIQUE (student_id, date),
+    CONSTRAINT fk_attendance_marked_by FOREIGN KEY (marked_by) REFERENCES users(id)
+);
+
+CREATE TABLE exams (
+    id INTEGER DEFAULT exams_id_seq.NEXTVAL PRIMARY KEY,
+    exam_name VARCHAR2(200) NOT NULL,
+    class_id INTEGER,
+    subject_id INTEGER,
+    exam_date DATE NOT NULL,
+    max_marks INTEGER NOT NULL,
+    duration_minutes INTEGER,
+    exam_type VARCHAR2(50) CHECK (exam_type IN ('unit_test', 'quarterly', 'half_yearly', 'annual')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_exam_class FOREIGN KEY (class_id) REFERENCES classes(id)
+);
+
+CREATE TABLE exam_results (
+    id INTEGER DEFAULT exam_results_id_seq.NEXTVAL PRIMARY KEY,
+    exam_id INTEGER,
+    student_id INTEGER,
+    marks_obtained NUMBER(5,2) NOT NULL,
+    grade VARCHAR2(5),
+    remarks CLOB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uk_exam_result UNIQUE (exam_id, student_id),
+    CONSTRAINT fk_exam_result_exam FOREIGN KEY (exam_id) REFERENCES exams(id)
+);
+
+CREATE TABLE fees (
+    id INTEGER DEFAULT fees_id_seq.NEXTVAL PRIMARY KEY,
+    student_id INTEGER,
+    academic_year VARCHAR2(10) NOT NULL,
+    term VARCHAR2(20) NOT NULL,
+    tuition_fee NUMBER(10,2) DEFAULT 0,
+    transport_fee NUMBER(10,2) DEFAULT 0,
+    lab_fee NUMBER(10,2) DEFAULT 0,
+    library_fee NUMBER(10,2) DEFAULT 0,
+    sports_fee NUMBER(10,2) DEFAULT 0,
+    other_fees NUMBER(10,2) DEFAULT 0,
+    total_amount NUMBER(10,2) NOT NULL,
+    paid_amount NUMBER(10,2) DEFAULT 0,
+    due_date DATE NOT NULL,
+    status VARCHAR2(20) DEFAULT 'pending' CHECK (status IN ('pending', 'paid', 'overdue')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE fee_payments (
+    id INTEGER DEFAULT fee_payments_id_seq.NEXTVAL PRIMARY KEY,
+    fee_id INTEGER,
+    payment_date DATE DEFAULT CURRENT_DATE,
+    amount_paid NUMBER(10,2) NOT NULL,
+    payment_method VARCHAR2(50),
+    transaction_id VARCHAR2(100),
+    receipt_number VARCHAR2(50) UNIQUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_fee_payment FOREIGN KEY (fee_id) REFERENCES fees(id)
+);
+
+CREATE TABLE homework (
+    id INTEGER DEFAULT homework_id_seq.NEXTVAL PRIMARY KEY,
+    class_id INTEGER,
+    subject_id INTEGER,
+    teacher_id INTEGER,
+    title VARCHAR2(200) NOT NULL,
+    description CLOB,
+    due_date DATE NOT NULL,
+    assigned_date DATE DEFAULT CURRENT_DATE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_homework_class FOREIGN KEY (class_id) REFERENCES classes(id),
+    CONSTRAINT fk_homework_teacher FOREIGN KEY (teacher_id) REFERENCES users(id)
+);
+
+CREATE TABLE inventory (
+    id INTEGER DEFAULT inventory_id_seq.NEXTVAL PRIMARY KEY,
+    item_name VARCHAR2(200) NOT NULL,
+    item_code VARCHAR2(50) UNIQUE NOT NULL,
+    category VARCHAR2(100) NOT NULL,
+    description CLOB,
+    quantity_available INTEGER DEFAULT 0 NOT NULL,
+    unit_price NUMBER(10,2),
+    supplier_name VARCHAR2(200),
+    purchase_date DATE,
+    expiry_date DATE,
+    location VARCHAR2(100),
+    status VARCHAR2(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'damaged')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE inventory_transactions (
+    id INTEGER DEFAULT inventory_transactions_id_seq.NEXTVAL PRIMARY KEY,
+    item_id INTEGER,
+    transaction_type VARCHAR2(20) NOT NULL,
+    quantity INTEGER NOT NULL,
+    student_id INTEGER,
+    teacher_id INTEGER,
+    transaction_date DATE DEFAULT CURRENT_DATE,
+    notes CLOB,
+    created_by INTEGER,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_inv_trans_item FOREIGN KEY (item_id) REFERENCES inventory(id),
+    CONSTRAINT fk_inv_trans_teacher FOREIGN KEY (teacher_id) REFERENCES teachers(id),
+    CONSTRAINT fk_inv_trans_created_by FOREIGN KEY (created_by) REFERENCES users(id)
+);
+
+CREATE TABLE inventory_usage (
+    id INTEGER DEFAULT inventory_usage_id_seq.NEXTVAL PRIMARY KEY,
+    inventory_id INTEGER,
+    used_by INTEGER,
+    quantity_used INTEGER NOT NULL,
+    usage_date DATE DEFAULT CURRENT_DATE,
+    purpose CLOB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_inv_usage_inventory FOREIGN KEY (inventory_id) REFERENCES inventory(id),
+    CONSTRAINT fk_inv_usage_used_by FOREIGN KEY (used_by) REFERENCES users(id)
+);
+
+CREATE TABLE notifications (
+    id INTEGER DEFAULT notifications_id_seq.NEXTVAL PRIMARY KEY,
+    title VARCHAR2(200) NOT NULL,
+    message CLOB NOT NULL,
+    type VARCHAR2(50) DEFAULT 'general',
+    target_audience VARCHAR2(50) DEFAULT 'all',
+    class_ids VARCHAR2(4000),
+    is_urgent NUMBER(1) DEFAULT 0,
+    scheduled_date DATE,
+    expiry_date DATE,
+    created_by INTEGER,
+    status VARCHAR2(20) DEFAULT 'active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_notification_created_by FOREIGN KEY (created_by) REFERENCES users(id)
+);
+
+CREATE TABLE student_remarks (
+    id INTEGER DEFAULT student_remarks_id_seq.NEXTVAL PRIMARY KEY,
+    student_id INTEGER,
+    teacher_id INTEGER,
+    date DATE DEFAULT CURRENT_DATE,
+    remark_type VARCHAR2(20) CHECK (remark_type IN ('positive', 'negative', 'neutral')),
+    remark CLOB NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_student_remark_teacher FOREIGN KEY (teacher_id) REFERENCES users(id)
+);
+
+CREATE TABLE student_transport (
+    id INTEGER DEFAULT student_transport_id_seq.NEXTVAL PRIMARY KEY,
+    student_id INTEGER,
+    route_id INTEGER,
+    pickup_point VARCHAR2(100),
+    monthly_fee NUMBER(8,2),
+    status VARCHAR2(20) DEFAULT 'active',
+    assigned_date DATE DEFAULT CURRENT_DATE,
+    CONSTRAINT fk_student_transport_route FOREIGN KEY (route_id) REFERENCES transport_routes(id)
+);
+
+CREATE TABLE system_settings (
+    id INTEGER DEFAULT system_settings_id_seq.NEXTVAL PRIMARY KEY,
+    school_name VARCHAR2(100) DEFAULT 'Tamil Nadu Model School',
+    logo_url CLOB DEFAULT '/placeholder.svg?height=40&width=40&text=TN',
+    academic_year VARCHAR2(20) DEFAULT '2024-25',
+    contact_email VARCHAR2(100) DEFAULT 'admin@tnmodelschool.edu',
+    contact_phone VARCHAR2(20) DEFAULT '+91-9876543210',
+    address CLOB DEFAULT 'No. 123, Anna Salai, Chennai, Tamil Nadu 600002',
+    transport_base_fee INTEGER DEFAULT 1500,
+    enable_homework_tracking NUMBER(1) DEFAULT 1,
+    enable_sms_alerts NUMBER(1) DEFAULT 1,
+    enable_parent_portal NUMBER(1) DEFAULT 1,
+    primary_color VARCHAR2(10) DEFAULT '#3b82f6',
+    secondary_color VARCHAR2(10) DEFAULT '#1e40af',
+    dark_mode_enabled NUMBER(1) DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE timetable (
+    id INTEGER DEFAULT timetable_id_seq.NEXTVAL PRIMARY KEY,
+    class_id INTEGER,
+    subject_id INTEGER,
+    teacher_id INTEGER,
+    day_of_week INTEGER CHECK (day_of_week BETWEEN 1 AND 7),
+    start_time TIMESTAMP NOT NULL,
+    end_time TIMESTAMP NOT NULL,
+    room_number VARCHAR2(20),
+    academic_year VARCHAR2(10) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_timetable_class FOREIGN KEY (class_id) REFERENCES classes(id),
+    CONSTRAINT fk_timetable_teacher FOREIGN KEY (teacher_id) REFERENCES users(id)
+);
+
+CREATE TABLE transport_routes (
+    id INTEGER DEFAULT transport_routes_id_seq.NEXTVAL PRIMARY KEY,
+    route_name VARCHAR2(100) NOT NULL,
+    route_code VARCHAR2(20) UNIQUE NOT NULL,
+    pickup_points CLOB,
+    monthly_fee NUMBER(10,2) NOT NULL,
+    driver_name VARCHAR2(100),
+    driver_phone VARCHAR2(15),
+    vehicle_number VARCHAR2(20),
+    capacity INTEGER,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+CREATE INDEX idx_classes_class_name ON classes(class_name);
+CREATE INDEX idx_classes_academic_year ON classes(academic_year);
+
+
+CREATE INDEX idx_students_student_id ON students(student_id);
+CREATE INDEX idx_students_admission_number ON students(admission_number);
+CREATE INDEX idx_students_class_id ON students(class_id);
+
+
+CREATE INDEX idx_teachers_teacher_id ON teachers(teacher_id);
+CREATE INDEX idx_teachers_email ON teachers(email);
+
+
+CREATE INDEX idx_subjects_subject_code ON subjects(subject_code);
+
+
+CREATE INDEX idx_attendance_student_id ON attendance(student_id);
+CREATE INDEX idx_attendance_date ON attendance(date);
+
+
+CREATE INDEX idx_exams_class_id ON exams(class_id);
+CREATE INDEX idx_exams_subject_id ON exams(subject_id);
+CREATE INDEX idx_exams_exam_date ON exams(exam_date);
+
+-- Exam_results table
+CREATE INDEX idx_exam_results_exam_id ON exam_results(exam_id);
+CREATE INDEX idx_exam_results_student_id ON exam_results(student_id);
+
+-- Fees table
+CREATE INDEX idx_fees_student_id ON fees(student_id);
+CREATE INDEX idx_fees_academic_year ON fees(academic_year);
+
+-- Fee_payments table
+CREATE INDEX idx_fee_payments_fee_id ON fee_payments(fee_id);
+CREATE INDEX idx_fee_payments_payment_date ON fee_payments(payment_date);
+
+-- Homework table
+CREATE INDEX idx_homework_class_id ON homework(class_id);
+CREATE INDEX idx_homework_subject_id ON homework(subject_id);
+CREATE INDEX idx_homework_due_date ON homework(due_date);
+
+-- Timetable table
+CREATE INDEX idx_timetable_class_id ON timetable(class_id);
+CREATE INDEX idx_timetable_subject_id ON timetable(subject_id);
+CREATE INDEX idx_timetable_teacher_id ON timetable(teacher_id);
+
+-- Transport_routes table
+CREATE INDEX idx_transport_routes_route_code ON transport_routes(route_code);
+
+-- Student_transport table
+CREATE INDEX idx_student_transport_student_id ON student_transport(student_id);
+CREATE INDEX idx_student_transport_route_id ON student_transport(route_id);
+
+-- Inventory table
+CREATE INDEX idx_inventory_item_code ON inventory(item_code);
+CREATE INDEX idx_inventory_category ON inventory(category);
+
+-- Inventory_transactions table
+CREATE INDEX idx_inventory_transactions_item_id ON inventory_transactions(item_id);
+CREATE INDEX idx_inventory_transactions_transaction_date ON inventory_transactions(transaction_date);
+
+-- Inventory_usage table
+CREATE INDEX idx_inventory_usage_inventory_id ON inventory_usage(inventory_id);
+CREATE INDEX idx_inventory_usage_usage_date ON inventory_usage(usage_date);
+
+-- Notifications table
+CREATE INDEX idx_notifications_scheduled_date ON notifications(scheduled_date);
+CREATE INDEX idx_notifications_expiry_date ON notifications(expiry_date);
+
+-- Student_remarks table
+CREATE INDEX idx_student_remarks_student_id ON student_remarks(student_id);
+CREATE INDEX idx_student_remarks_teacher_id ON student_remarks(teacher_id);
+CREATE INDEX idx_student_remarks_date ON student_remarks(date);
+
+-- Users table
+CREATE INDEX idx_users_username ON users(username);
+CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_users_role ON users(role);
+
+-- Class_subject_teacher table
+CREATE INDEX idx_class_subject_teacher_class_id ON class_subject_teacher(class_id);
+CREATE INDEX idx_class_subject_teacher_subject_id ON class_subject_teacher(subject_id);
+CREATE INDEX idx_class_subject_teacher_user_id ON class_subject_teacher(user_id);

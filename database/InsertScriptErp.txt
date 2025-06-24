@@ -1,0 +1,799 @@
+-- Text to SQL original prompt:
+-- can you generate 100 insert queries for each table to add in mysql
+-- 
+-- Insert 100 records into users table
+INSERT INTO
+  users (
+    username,
+    email,
+    password_hash,
+    role,
+    full_name,
+    phone,
+    date_of_birth,
+    address
+  )
+SELECT
+  'user' || generate_series,
+  'user' || generate_series || '@example.com',
+  md5(random()::text),
+  CASE
+    WHEN random() < 0.1 THEN 'admin'
+    WHEN random() < 0.3 THEN 'teacher'
+    ELSE 'student'
+  END,
+  'Full Name ' || generate_series,
+  '555' || lpad(generate_series::text, 7, '0'),
+  current_date - (random() * 365 * 30)::integer,
+  'Address ' || generate_series
+FROM
+  generate_series(1, 100);
+
+-- Insert 100 records into classes table
+INSERT INTO
+  classes (
+    class_name,
+    section,
+    class_teacher_id,
+    academic_year
+  )
+SELECT
+  'Class ' || (generate_series % 12 + 1),
+  chr(65 + (generate_series % 3)),
+  (
+    SELECT
+      id
+    FROM
+      users
+    WHERE
+      role = 'teacher'
+    ORDER BY
+      random()
+    LIMIT
+      1
+  ),
+  '2024-25'
+FROM
+  generate_series(1, 100);
+
+-- Insert 100 records into subjects table
+INSERT INTO
+  subjects (subject_name, subject_code, description)
+SELECT
+  'Subject ' || generate_series,
+  'SUB' || lpad(generate_series::text, 3, '0'),
+  'Description for Subject ' || generate_series
+FROM
+  generate_series(1, 100);
+
+-- Insert 100 records into students table
+INSERT INTO
+  students (
+    student_id,
+    user_id,
+    class_id,
+    admission_number,
+    admission_date,
+    father_name,
+    mother_name,
+    guardian_phone,
+    blood_group,
+    transport_opted
+  )
+SELECT
+  'STU' || lpad(generate_series::text, 5, '0'),
+  (
+    SELECT
+      id
+    FROM
+      users
+    WHERE
+      role = 'student'
+    ORDER BY
+      random()
+    LIMIT
+      1
+  ),
+  (
+    SELECT
+      id
+    FROM
+      classes
+    ORDER BY
+      random()
+    LIMIT
+      1
+  ),
+  'ADM' || lpad(generate_series::text, 5, '0'),
+  curent_date - (random() * 365 * 5)::integer,
+  'Father ' || generate_series,
+  'Mother ' || generate_series,
+  '555' || lpad(generate_series::text, 7, '0'),
+  (
+    ARRAY['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-']
+  ) [floor(random() * 8 + 1)],
+  random() < 0.5
+FROM
+  generate_series(1, 100);
+
+-- Insert 100 records into teachers table
+INSERT INTO
+  teachers (
+    teacher_id,
+    user_id,
+    name,
+    subject,
+    phone,
+    email,
+    assigned_classes,
+    qualification,
+    experience_years,
+    salary,
+    joining_date
+  )
+SELECT
+  'TCH' || lpad(generate_series::text, 5, '0'),
+  (
+    SELECT
+      id
+    FROM
+      users
+    WHERE
+      role = 'teacher'
+    ORDER BY
+      random()
+    LIMIT
+      1
+  ),
+  'Teacher ' || generate_series,
+  (
+    SELECT
+      subject_name
+    FROM
+      subjects
+    ORDER BY
+      random()
+    LIMIT
+      1
+  ),
+  '555' || lpad(generate_series::text, 7, '0'),
+  'teacher' || generate_series || '@school.com',
+  ARRAY[
+    (
+      SELECT
+        class_name
+      FROM
+        classes
+      ORDER BY
+        random()
+      LIMIT
+        1
+    )
+  ],
+  'M.Ed.',
+  floor(random() * 20 + 1),
+  30000 + (random() * 20000)::integer,
+  current_date - (random() * 365 * 10)::integer
+FROM
+  generate_series(1, 100);
+
+-- Insert 100 records into attendance table
+INSERT INTO
+  attendance (student_id, date, status, marked_by, remarks)
+SELECT
+  (
+    SELECT
+      id
+    FROM
+      students
+    ORDER BY
+      random()
+    LIMIT
+      1
+  ),
+  current_date - (random() * 365)::integer,
+  (ARRAY['present', 'absent', 'late', 'half_day']) [floor(random() * 4 + 1)],
+  (
+    SELECT
+      id
+    FROM
+      users
+    WHERE
+      role = 'teacher'
+    ORDER BY
+      random()
+    LIMIT
+      1
+  ),
+  CASE
+    WHEN random() < 0.2 THEN 'Remark ' || generate_series
+    ELSE NULL
+  END
+FROM
+  generate_series(1, 100);
+
+-- Insert 100 records into exams table
+INSERT INTO
+  exams (
+    exam_name,
+    class_id,
+    subject_id,
+    exam_date,
+    max_marks,
+    duration_minutes,
+    exam_type
+  )
+SELECT
+  'Exam ' || generate_series,
+  (
+    SELECT
+      id
+    FROM
+      classes
+    ORDER BY
+      random()
+    LIMIT
+      1
+  ),
+  (
+    SELECT
+      id
+    FROM
+      subjects
+    ORDER BY
+      random()
+    LIMIT
+      1
+  ),
+  current_date + (random() * 365)::integer,
+  (ARRAY[50, 100]) [floor(random() * 2 + 1)],
+  (ARRAY[60, 90, 120]) [floor(random() * 3 + 1)],
+  (
+    ARRAY['unit_test', 'quarterly', 'half_yearly', 'annual']
+  ) [floor(random() * 4 + 1)]
+FROM
+  generate_series(1, 100);
+
+-- Insert 100 records into exam_results table
+INSERT INTO
+  exam_results (
+    exam_id,
+    student_id,
+    marks_obtained,
+    grade,
+    remarks
+  )
+SELECT
+  (
+    SELECT
+      id
+    FROM
+      exams
+    ORDER BY
+      random()
+    LIMIT
+      1
+  ),
+  (
+    SELECT
+      id
+    FROM
+      students
+    ORDER BY
+      random()
+    LIMIT
+      1
+  ),
+  floor(random() * 100 + 1),
+  (ARRAY['A', 'B', 'C', 'D', 'E', 'F']) [floor(random() * 6 + 1)],
+  CASE
+    WHEN random() < 0.2 THEN 'Remark ' || generate_series
+    ELSE NULL
+  END
+FROM
+  generate_series(1, 100);
+
+-- Insert 100 records into fees table
+INSERT INTO
+  fees (
+    student_id,
+    academic_year,
+    term,
+    tuition_fee,
+    transport_fee,
+    lab_fee,
+    library_fee,
+    sports_fee,
+    other_fees,
+    total_amount,
+    paid_amount,
+    due_date,
+    status
+  )
+SELECT
+  (
+    SELECT
+      id
+    FROM
+      students
+    ORDER BY
+      random()
+    LIMIT
+      1
+  ),
+  '2024-25',
+  (ARRAY['Term 1', 'Term 2', 'Term 3']) [floor(random() * 3 + 1)],
+  10000 + (random() * 5000)::integer,
+  1000 + (random() * 1000)::integer,
+  500 + (random() * 500)::integer,
+  300 + (random() * 200)::integer,
+  200 + (random() * 300)::integer,
+  100 + (random() * 400)::integer,
+  0, -- Will be calculated
+  0, -- Will be calculated
+  current_date + (random() * 365)::integer,
+  (ARRAY['pending', 'paid', 'overdue']) [floor(random() * 3 + 1)]
+FROM
+  generate_series(1, 100);
+
+-- Update total_amount and paid_amount in fees table
+UPDATE fees
+SET
+  total_amount = tuition_fee + transport_fee + lab_fee + library_fee + sports_fee + other_fees,
+  paid_amount = CASE
+    WHEN status = 'paid' THEN total_amount
+    WHEN status = 'pending' THEN 0
+    ELSE floor(random() * total_amount)
+  END;
+
+-- Insert 100 records into fee_payments table
+INSERT INTO
+  fee_payments (
+    fee_id,
+    payment_date,
+    amount_paid,
+    payment_method,
+    transaction_id,
+    receipt_number
+  )
+SELECT
+  (
+    SELECT
+      id
+    FROM
+      fees
+    ORDER BY
+      random()
+    LIMIT
+      1
+  ),
+  current_date - (random() * 365)::integer,
+  1000 + (random() * 10000)::integer,
+  (ARRAY['cash', 'card', 'bank transfer', 'cheque']) [floor(random() * 4 + 1)],
+  'TXN' || lpad(generate_series::text, 10, '0'),
+  'RCPT' || lpad(generate_series::text, 8, '0')
+FROM
+  generate_series(1, 100);
+
+-- Insert 100 records into homework table
+INSERT INTO
+  homework (
+    class_id,
+    subject_id,
+    teacher_id,
+    title,
+    description,
+    due_date
+  )
+SELECT
+  (
+    SELECT
+      id
+    FROM
+      classes
+    ORDER BY
+      random()
+    LIMIT
+      1
+  ),
+  (
+    SELECT
+      id
+    FROM
+      subjects
+    ORDER BY
+      random()
+    LIMIT
+      1
+  ),
+  (
+    SELECT
+      id
+    FROM
+      users
+    WHERE
+      role = 'teacher'
+    ORDER BY
+      random()
+    LIMIT
+      1
+  ),
+  'Homework ' || generate_series,
+  'Description for Homework ' || generate_series,
+  current_date + (random() * 14)::integer
+FROM
+  generate_series(1, 100);
+
+-- Insert 100 records into inventory table
+INSERT INTO
+  inventory (
+    item_name,
+    item_code,
+    category,
+    description,
+    quantity_available,
+    unit_price,
+    supplier_name,
+    purchase_date,
+    expiry_date,
+    location
+  )
+SELECT
+  'Item ' || generate_series,
+  'ITM' || lpad(generate_series::text, 5, '0'),
+  (
+    ARRAY[
+      'Stationery',
+      'Electronics',
+      'Furniture',
+      'Books',
+      'Sports Equipment'
+    ]
+  ) [floor(random() * 5 + 1)],
+  'Description for Item ' || generate_series,
+  floor(random() * 1000 + 1),
+  10 + (random() * 990)::numeric(10, 2),
+  'Supplier ' || (generate_series % 10 + 1),
+  current_date - (random() * 365)::integer,
+  current_date + (random() * 365 * 2)::integer,
+  'Location ' || (generate_series % 5 + 1)
+FROM
+  generate_series(1, 100);
+
+-- Insert 100 records into inventory_transactions table
+INSERT INTO
+  inventory_transactions (
+    item_id,
+    transaction_type,
+    quantity,
+    student_id,
+    teacher_id,
+    notes,
+    created_by
+  )
+SELECT
+  (
+    SELECT
+      id
+    FROM
+      inventory
+    ORDER BY
+      random()
+    LIMIT
+      1
+  ),
+  (ARRAY['in', 'out']) [floor(random() * 2 + 1)],
+  floor(random() * 50 + 1),
+  CASE
+    WHEN random() < 0.5 THEN (
+      SELECT
+        id
+      FROM
+        students
+      ORDER BY
+        random()
+      LIMIT
+        1
+    )
+    ELSE NULL
+  END,
+  CASE
+    WHEN random() < 0.5 THEN (
+      SELECT
+        id
+      FROM
+        teachers
+      ORDER BY
+        random()
+      LIMIT
+        1
+    )
+    ELSE NULL
+  END,
+  CASE
+    WHEN random() < 0.2 THEN 'Note ' || generate_series
+    ELSE NULL
+  END,
+  (
+    SELECT
+      id
+    FROM
+      users
+    WHERE
+      role = 'admin'
+    ORDER BY
+      random()
+    LIMIT
+      1
+  )
+FROM
+  generate_series(1, 100);
+
+-- Insert 100 records into notifications table
+INSERT INTO
+  notifications (
+    title,
+    message,
+    type,
+    target_audience,
+    class_ids,
+    is_urgent,
+    scheduled_date,
+    expiry_date,
+    created_by
+  )
+SELECT
+  'Notification ' || generate_series,
+  'Message for Notification ' || generate_series,
+  (
+    ARRAY['general', 'academic', 'event', 'emergency']
+  ) [floor(random() * 4 + 1)],
+  (ARRAY['all', 'students', 'teachers', 'parents']) [floor(random() * 4 + 1)],
+  CASE
+    WHEN random() < 0.5 THEN ARRAY[
+      (
+        SELECT
+          id
+        FROM
+          classes
+        ORDER BY
+          random()
+        LIMIT
+          1
+      )
+    ]
+    ELSE NULL
+  END,
+  random() < 0.1,
+  current_date + (random() * 30)::integer,
+  current_date + (random() * 60 + 30)::integer,
+  (
+    SELECT
+      id
+    FROM
+      users
+    WHERE
+      role = 'admin'
+    ORDER BY
+      random()
+    LIMIT
+      1
+  )
+FROM
+  generate_series(1, 100);
+
+-- Insert 100 records into student_remarks table
+INSERT INTO
+  student_remarks (student_id, teacher_id, remark_type, remark)
+SELECT
+  (
+    SELECT
+      id
+    FROM
+      students
+    ORDER BY
+      random()
+    LIMIT
+      1
+  ),
+  (
+    SELECT
+      id
+    FROM
+      users
+    WHERE
+      role = 'teacher'
+    ORDER BY
+      random()
+    LIMIT
+      1
+  ),
+  (ARRAY['positive', 'negative', 'neutral']) [floor(random() * 3 + 1)],
+  'Remark ' || generate_series
+FROM
+  generate_series(1, 100);
+
+-- Insert 100 records into transport_routes table
+INSERT INTO
+  transport_routes (
+    route_name,
+    route_code,
+    pickup_points,
+    monthly_fee,
+    driver_name,
+    driver_phone,
+    vehicle_number,
+    capacity
+  )
+SELECT
+  'Route ' || generate_series,
+  'RT' || lpad(generate_series::text, 3, '0'),
+  ARRAY['Point A', 'Point B', 'Point C'],
+  500 + (random() * 500)::numeric(10, 2),
+  'Driver ' || generate_series,
+  '555' || lpad(generate_series::text, 7, '0'),
+  'VEH' || lpad(generate_series::text, 4, '0'),
+  30 + (random() * 20)::integer
+FROM
+  generate_series(1, 100);
+
+-- Insert 100 records into student_transport table
+INSERT INTO
+  student_transport (student_id, route_id, pickup_point, monthly_fee)
+SELECT
+  (
+    SELECT
+      id
+    FROM
+      students
+    WHERE
+      transport_opted = true
+    ORDER BY
+      random()
+    LIMIT
+      1
+  ),
+  (
+    SELECT
+      id
+    FROM
+      transport_routes
+    ORDER BY
+      random()
+    LIMIT
+      1
+  ),
+  (ARRAY['Point A', 'Point B', 'Point C']) [floor(random() * 3 + 1)],
+  500 + (random() * 500)::numeric(8, 2)
+FROM
+  generate_series(1, 100);
+
+-- Insert 100 records into timetable table
+INSERT INTO
+  timetable (
+    class_id,
+    subject_id,
+    teacher_id,
+    day_of_week,
+    start_time,
+    end_time,
+    room_number,
+    academic_year
+  )
+SELECT
+  (
+    SELECT
+      id
+    FROM
+      classes
+    ORDER BY
+      random()
+    LIMIT
+      1
+  ),
+  (
+    SELECT
+      id
+    FROM
+      subjects
+    ORDER BY
+      random()
+    LIMIT
+      1
+  ),
+  (
+    SELECT
+      id
+    FROM
+      users
+    WHERE
+      role = 'teacher'
+    ORDER BY
+      random()
+    LIMIT
+      1
+  ),
+  floor(random() * 5 + 1),
+  (
+    '08:00'::time + (floor(random() * 8) * interval '1 hour')
+  )::time,
+  (
+    '09:00'::time + (floor(random() * 8) * interval '1 hour')
+  )::time,
+  'Room ' || (generate_series % 20 + 1),
+  '2024-25'
+FROM
+  generate_series(1, 100);
+
+-- Insert 100 records into class_subject_teacher table
+INSERT INTO
+  class_subject_teacher (class_id, subject_id, user_id)
+SELECT
+  (
+    SELECT
+      id
+    FROM
+      classes
+    ORDER BY
+      random()
+    LIMIT
+      1
+  ),
+  (
+    SELECT
+      id
+    FROM
+      subjects
+    ORDER BY
+      random()
+    LIMIT
+      1
+  ),
+  (
+    SELECT
+      id
+    FROM
+      users
+    WHERE
+      role = 'teacher'
+    ORDER BY
+      random()
+    LIMIT
+      1
+  )
+FROM
+  generate_series(1, 100);
+
+-- Insert 100 records into inventory_usage table
+INSERT INTO
+  inventory_usage (inventory_id, used_by, quantity_used, purpose)
+SELECT
+  (
+    SELECT
+      id
+    FROM
+      inventory
+    ORDER BY
+      random()
+    LIMIT
+      1
+  ),
+  (
+    SELECT
+      id
+    FROM
+      users
+    ORDER BY
+      random()
+    LIMIT
+      1
+  ),
+  floor(random() * 10 + 1),
+  'Purpose ' || generate_series
+FROM
+  generate_series(1, 100);
+
+-- Insert a record into system_settings table (usually there's only one record for system settings)
+INSERT INTO
+  system_settings
+DEFAULT VALUES;
