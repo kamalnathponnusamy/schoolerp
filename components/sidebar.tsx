@@ -24,6 +24,7 @@ import {
 } from "lucide-react"
 
 const navigation = [
+  // STUDENT & TEACHER SHARED: Dashboard
   {
     name: "Dashboard",
     href: "/dashboard",
@@ -31,31 +32,9 @@ const navigation = [
     color: "text-blue-600",
     bgColor: "bg-blue-50",
     description: "Overview & Analytics",
+    roles: ["admin", "teacher", "student"],
   },
-  {
-    name: "Students",
-    href: "/students",
-    icon: Users,
-    color: "text-green-600",
-    bgColor: "bg-green-50",
-    description: "Student Management",
-  },
-  {
-    name: "Teachers",
-    href: "/teachers",
-    icon: GraduationCap,
-    color: "text-purple-600",
-    bgColor: "bg-purple-50",
-    description: "Staff Directory",
-  },
-  {
-    name: "Classes",
-    href: "/classes",
-    icon: BookOpen,
-    color: "text-orange-600",
-    bgColor: "bg-orange-50",
-    description: "Class Management",
-  },
+  // STUDENT ONLY
   {
     name: "Timetable",
     href: "/timetable",
@@ -63,30 +42,25 @@ const navigation = [
     color: "text-indigo-600",
     bgColor: "bg-indigo-50",
     description: "Schedule & Timing",
+    roles: ["admin", "teacher", "student"],
   },
   {
-    name: "Transport",
-    href: "/transport",
-    icon: Bus,
-    color: "text-yellow-600",
-    bgColor: "bg-yellow-50",
-    description: "Route Management",
+    name: "Assignments",
+    href: "/assignments",
+    icon: FileText,
+    color: "text-teal-600",
+    bgColor: "bg-teal-50",
+    description: "Assignments",
+    roles: ["admin", "teacher", "student"],
   },
   {
-    name: "Inventory",
-    href: "/inventory",
-    icon: Package,
-    color: "text-red-600",
-    bgColor: "bg-red-50",
-    description: "Stock & Assets",
-  },
-  {
-    name: "Exams",
-    href: "/exams",
-    icon: Calendar,
-    color: "text-pink-600",
-    bgColor: "bg-pink-50",
-    description: "Examination System",
+    name: "Attendance",
+    href: "/attendance",
+    icon: Clock,
+    color: "text-indigo-600",
+    bgColor: "bg-indigo-50",
+    description: "Attendance",
+    roles: ["admin", "teacher", "student"],
   },
   {
     name: "Reports",
@@ -95,6 +69,81 @@ const navigation = [
     color: "text-teal-600",
     bgColor: "bg-teal-50",
     description: "Analytics & Reports",
+    roles: ["admin", "teacher", "student"],
+  },
+  // TEACHER ONLY
+  {
+    name: "Mark Attendance",
+    href: "/attendance",
+    icon: Clock,
+    color: "text-indigo-600",
+    bgColor: "bg-indigo-50",
+    description: "Mark Attendance",
+    roles: ["teacher"],
+  },
+  {
+    name: "Assign Homework",
+    href: "/homework",
+    icon: BookOpen,
+    color: "text-orange-600",
+    bgColor: "bg-orange-50",
+    description: "Assign Homework",
+    roles: ["teacher"],
+  },
+  // ADMIN/STAFF ONLY
+  {
+    name: "Students",
+    href: "/students",
+    icon: Users,
+    color: "text-green-600",
+    bgColor: "bg-green-50",
+    description: "Student Management",
+    roles: ["admin"],
+  },
+  {
+    name: "Teachers",
+    href: "/teachers",
+    icon: GraduationCap,
+    color: "text-purple-600",
+    bgColor: "bg-purple-50",
+    description: "Staff Directory",
+    roles: ["admin"],
+  },
+  {
+    name: "Classes",
+    href: "/classes",
+    icon: BookOpen,
+    color: "text-orange-600",
+    bgColor: "bg-orange-50",
+    description: "Class Management",
+    roles: ["admin"],
+  },
+  {
+    name: "Transport",
+    href: "/transport",
+    icon: Bus,
+    color: "text-yellow-600",
+    bgColor: "bg-yellow-50",
+    description: "Route Management",
+    roles: ["admin"],
+  },
+  {
+    name: "Inventory",
+    href: "/inventory",
+    icon: Package,
+    color: "text-red-600",
+    bgColor: "bg-red-50",
+    description: "Stock & Assets",
+    roles: ["admin"],
+  },
+  {
+    name: "Exams",
+    href: "/exams",
+    icon: Calendar,
+    color: "text-pink-600",
+    bgColor: "bg-pink-50",
+    description: "Examination System",
+    roles: ["admin"],
   },
   {
     name: "Settings",
@@ -103,6 +152,7 @@ const navigation = [
     color: "text-gray-600",
     bgColor: "bg-gray-50",
     description: "System Configuration",
+    roles: ["admin"],
   },
 ]
 
@@ -121,6 +171,26 @@ export function Sidebar() {
       }
     }
   }, [])
+
+  // Strict role-based filtering
+  let filteredNavigation: typeof navigation = []
+  if (user) {
+    if (user.role === "student") {
+      filteredNavigation = navigation.filter(
+        (item) =>
+          ["Dashboard", "Timetable", "Assignments", "Attendance", "Reports"].includes(item.name) &&
+          item.roles.includes("student")
+      )
+    } else if (user.role === "teacher") {
+      filteredNavigation = navigation.filter(
+        (item) =>
+          ["Dashboard", "Mark Attendance", "Assign Homework", "Timetable"].includes(item.name) &&
+          item.roles.includes("teacher")
+      )
+    } else if (user.role === "admin") {
+      filteredNavigation = navigation.filter((item) => item.roles.includes("admin"))
+    }
+  }
 
   return (
     <>
@@ -181,7 +251,7 @@ export function Sidebar() {
 
           {/* Navigation */}
           <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
-            {navigation.map((item) => {
+            {filteredNavigation.map((item) => {
               const isActive = pathname === item.href
               return (
                 <Link

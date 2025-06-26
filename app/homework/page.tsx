@@ -100,39 +100,30 @@ export default function HomeworkPage() {
   // Optimized class fetching with duplicate prevention and type safety
   const fetchClasses = async (currentUser: User) => {
     if (!currentUser) {
-      console.error("User not authenticated")
       toast.error("Please log in to view classes")
       setClasses([])
       return
     }
-
     try {
       setIsLoadingClasses(true)
       const response = await fetch("/api/classes/by-teacher", {
         method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${currentUser.token}`
-        },
+        headers: { "Content-Type": "application/json" },
         credentials: "include"
       })
-
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
         throw new Error(errorData.message || `Failed to fetch classes: ${response.statusText}`)
       }
-
       const data = await response.json()
-      
-      // Validate response data structure
-      if (!data || !Array.isArray(data)) {
+      const classArray = Array.isArray(data) ? data : data.classes
+      if (!classArray || !Array.isArray(classArray)) {
         console.error("Invalid response format:", data)
         throw new Error("Invalid response format from server")
       }
-
       // Type-safe validation and duplicate removal using Set
       const uniqueClassIds = new Set<number>()
-      const uniqueClasses = data.filter((item): item is Class => {
+      const uniqueClasses = classArray.filter((item): item is Class => {
         if (!item || typeof item !== 'object') return false
         
         const isValidClass = (
