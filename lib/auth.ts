@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 
-export function getSessionUser() {
-  const cookieStore = cookies();
+export async function getSessionUser() {
+  const cookieStore = await cookies();
   const sessionToken = cookieStore.get("session-token");
   if (!sessionToken) return null;
   try {
