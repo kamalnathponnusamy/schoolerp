@@ -3,7 +3,7 @@ import { sql } from "@/lib/db"
 import { getSessionUser } from "@/lib/auth"
 
 export async function POST(request: NextRequest) {
-  const user = getSessionUser()
+  const user = await getSessionUser()
   if (!user || user.role !== "teacher") {
     return Response.json({ error: "Forbidden" }, { status: 403 })
   }
