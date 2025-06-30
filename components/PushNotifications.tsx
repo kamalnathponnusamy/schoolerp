@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { messaging } from '@/lib/firebase';
-import { getToken } from 'firebase/messaging';
+
 
 
 export default function PushNotifications({ userId, role }: { userId: number, role: string }) {
