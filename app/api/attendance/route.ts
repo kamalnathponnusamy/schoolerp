@@ -3,10 +3,16 @@ import { cookies } from 'next/headers';
 import { sql } from '@/lib/db';
 import { sendPushNotification } from '@/lib/notifications';
 
-// Decode session token
+type AttendanceEntry = {
+  student_id: number;
+  status: 'present' | 'absent';
+};
+
+// Decode session token from cookies
 function getSessionUser(req: NextRequest) {
   try {
-    const sessionToken = cookies().get('session-token')?.value;
+    const cookieStore = cookies(); // FIX: correctly access cookie store
+    const sessionToken = cookieStore.get('session-token')?.value;
     if (!sessionToken) return null;
     const data = JSON.parse(Buffer.from(sessionToken, 'base64').toString('utf8'));
     return data; // { userId, role, username, etc. }
@@ -22,7 +28,11 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { class_id, date, attendance } = body;
+  const { class_id, date, attendance } = body as {
+    class_id: number;
+    date: string;
+    attendance: AttendanceEntry[];
+  };
 
   if (!class_id || !date || !Array.isArray(attendance)) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
@@ -50,13 +60,13 @@ export async function POST(request: NextRequest) {
       ? `${classResult.class_name}-${classResult.section}`
       : 'your class';
 
-    // 3. Get absent students
+    // 3. Filter absentees
     const absentList = attendance.filter((a) => a.status === 'absent');
     if (absentList.length === 0) {
       return NextResponse.json({ success: true, message: 'No absentees today' });
     }
 
-    // 4. Fetch absent student names and tokens
+    // 4. Get student names and tokens
     const absentTokens = await Promise.all(
       absentList.map(async (entry) => {
         const [studentRow] = await sql(
@@ -79,7 +89,7 @@ export async function POST(request: NextRequest) {
       })
     );
 
-    // 5. Notify students
+    // 5. Notify absent students
     await Promise.all(
       absentTokens.map(({ token, full_name }) => {
         if (!token) return;
@@ -91,8 +101,8 @@ export async function POST(request: NextRequest) {
       })
     );
 
-    // 6. Get teacher tokens
-    const result = await sql(
+    // 6. Get teacher tokens for this class
+    const teacherRows = await sql(
       `SELECT DISTINCT pt.token
        FROM class_teachers ct
        JOIN push_tokens pt ON ct.teacher_id = pt.user_id
@@ -100,16 +110,14 @@ export async function POST(request: NextRequest) {
       [class_id]
     );
 
-    const teacherRows = Array.isArray(result) ? result : [];
-
-    // 7. Notify teachers
     const absentNames = absentTokens.map((s) => s.full_name).join(', ');
     const teacherNotice = `Absent on ${date} in ${classInfo}: ${absentNames}`;
 
+    // 7. Notify teachers
     await Promise.all(
       teacherRows
-        .filter((row) => !!row.token)
-        .map((row) =>
+        .filter((row: any) => !!row.token)
+        .map((row: any) =>
           sendPushNotification({
             to: row.token,
             title: 'Attendance Update',
