@@ -1,5 +1,3 @@
-// lib/notifications.ts
-
 export async function sendPushNotification({
   to,
   title,
