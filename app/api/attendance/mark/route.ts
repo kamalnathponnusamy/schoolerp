@@ -57,8 +57,13 @@ export async function POST(request: NextRequest) {
           'SELECT token FROM push_tokens WHERE user_id = ? AND role = ?',
           [record.student_id, 'student']
         );
+
+
+
         const token = tokenRow?.token;
+        console.log("$token",token);
         if (token) {
+
           await sendPushNotification({
             to: token,
             title: 'You were marked absent',

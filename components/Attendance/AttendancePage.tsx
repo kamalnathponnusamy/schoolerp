@@ -130,9 +130,11 @@ export default function AttendancePage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(attendanceData),
+        credentials: "include",
       })
 
       if (!response.ok) {
+        console.error("Attendance submission failed:", await response.text())
         throw new Error("Failed to submit attendance")
       }
 
@@ -174,7 +176,8 @@ export default function AttendancePage() {
           </div>
           <Badge variant="outline" className="px-3 py-1">
             <CalendarIcon className="w-4 h-4 mr-2" />
-            {selectedDate.toLocaleDateString()}
+            {selectedDate.toLocaleDateString('en-US')}
+            {/*{selectedDate.toLocaleDateString()}*/}
           </Badge>
         </div>
 

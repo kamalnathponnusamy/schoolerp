@@ -24,8 +24,8 @@ export async function sendPushNotification({
     });
 
     const data = await res.json();
-    console.log('📲 Push notification sent:', data);
+    console.log('?? Push notification sent:', data);
   } catch (error) {
-    console.error('❌ Failed to send push notification:', error);
+    console.error('? Failed to send push notification:', error);
   }
 }
