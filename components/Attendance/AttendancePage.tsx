@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { UserCheck, Save, Eye, Calendar as CalendarIcon, Users } from "lucide-react"
+import { UserCheck, Save, Eye, Calendar as CalendarIcon, Users, Pencil } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import ClassSelector from "./ClassSelector"
 import DatePicker from "./DatePicker"
@@ -37,38 +37,47 @@ export default function AttendancePage() {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [attendanceSubmitted, setAttendanceSubmitted] = useState(false)
+  const [editMode, setEditMode] = useState(false)
   const { toast } = useToast()
 
-  // Fetch students when class is selected
   useEffect(() => {
     if (selectedClass) {
       fetchStudents(selectedClass.id)
-      checkAttendanceStatus()
     }
   }, [selectedClass, selectedDate])
 
   const fetchStudents = async (classId: string) => {
     try {
       setLoading(true)
-      const response = await fetch(`/api/students?class_id=${classId}`)
-      
-      if (!response.ok) {
-        throw new Error("Failed to fetch students")
+      const studentRes = await fetch(`/api/students?class_id=${classId}`)
+      if (!studentRes.ok) throw new Error("Failed to fetch students")
+      const studentData = await studentRes.json()
+
+      const dateStr = selectedDate.toISOString().split("T")[0]
+      const attendanceRes = await fetch(`/api/attendance?class_id=${classId}&date=${dateStr}`)
+      let attendanceData: AttendanceRecord[] = []
+
+      if (attendanceRes.ok) {
+        const result = await attendanceRes.json()
+        attendanceData = result.attendance || []
+        setAttendanceSubmitted(attendanceData.length > 0)
       }
 
-      const data = await response.json()
-      // Initialize all students as present by default
-      const studentsWithStatus = data.map((student: Student) => ({
+      const statusMap = Object.fromEntries(
+        attendanceData.map((a) => [a.student_id, a.status])
+      )
+
+      const studentsWithStatus = studentData.map((student: Student) => ({
         ...student,
-        status: "present" as const
+        status: statusMap[student.id] || "present",
       }))
-      
+
       setStudents(studentsWithStatus)
     } catch (error) {
-      console.error("Error fetching students:", error)
+      console.error("Error fetching students/attendance:", error)
       toast({
         title: "Error",
-        description: "Failed to fetch students",
+        description: "Failed to load student data",
         variant: "destructive",
       })
     } finally {
@@ -76,26 +85,11 @@ export default function AttendancePage() {
     }
   }
 
-  const checkAttendanceStatus = async () => {
-    if (!selectedClass) return
-
-    try {
-      const dateStr = selectedDate.toISOString().split('T')[0]
-      const response = await fetch(`/api/attendance?class_id=${selectedClass.id}&date=${dateStr}`)
-      
-      if (response.ok) {
-        const data = await response.json()
-        setAttendanceSubmitted(data.attendance && data.attendance.length > 0)
-      }
-    } catch (error) {
-      console.error("Error checking attendance status:", error)
-    }
-  }
-
   const handleStudentStatusChange = (studentId: string, status: "present" | "absent") => {
-    setStudents(prev => 
-      prev.map(student => 
-        student.id === studentId 
+    if (!editMode) return
+    setStudents(prev =>
+      prev.map(student =>
+        student.id === studentId
           ? { ...student, status }
           : student
       )
@@ -114,10 +108,10 @@ export default function AttendancePage() {
 
     try {
       setSaving(true)
-      
+
       const attendanceData = {
         class_id: selectedClass.id,
-        date: selectedDate.toISOString().split('T')[0],
+        date: selectedDate.toISOString().split("T")[0],
         attendance: students.map(student => ({
           student_id: student.id,
           status: student.status || "present"
@@ -139,13 +133,13 @@ export default function AttendancePage() {
       }
 
       const result = await response.json()
-      
       toast({
         title: "Success",
         description: result.message || "Attendance submitted successfully!",
       })
-      
+
       setAttendanceSubmitted(true)
+      setEditMode(false)
     } catch (error) {
       console.error("Error submitting attendance:", error)
       toast({
@@ -165,7 +159,6 @@ export default function AttendancePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 md:p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
@@ -177,7 +170,6 @@ export default function AttendancePage() {
           <Badge variant="outline" className="px-3 py-1">
             <CalendarIcon className="w-4 h-4 mr-2" />
             {selectedDate.toLocaleDateString('en-US')}
-            {/*{selectedDate.toLocaleDateString()}*/}
           </Badge>
         </div>
 
@@ -188,7 +180,6 @@ export default function AttendancePage() {
           </TabsList>
 
           <TabsContent value="mark-attendance" className="space-y-6">
-            {/* Controls */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <Card>
                 <CardHeader>
@@ -239,7 +230,6 @@ export default function AttendancePage() {
               </Card>
             </div>
 
-            {/* Student List */}
             {selectedClass && (
               <Card>
                 <CardHeader>
@@ -253,19 +243,26 @@ export default function AttendancePage() {
                         Mark attendance for {selectedDate.toLocaleDateString()}
                         {attendanceSubmitted && (
                           <Badge className="ml-2 bg-green-100 text-green-800">
-                            Attendance Already Submitted
+                            Already Submitted
                           </Badge>
                         )}
                       </CardDescription>
                     </div>
-                    <Button 
-                      onClick={handleSubmitAttendance}
-                      disabled={saving || students.length === 0}
-                      className="flex items-center gap-2"
-                    >
-                      <Save className="h-4 w-4" />
-                      {saving ? "Saving..." : "Save Attendance"}
-                    </Button>
+                    <div className="flex gap-2">
+                      {attendanceSubmitted && (
+                        <Button variant="outline" onClick={() => setEditMode(!editMode)}>
+                          <Pencil className="h-4 w-4 mr-1" /> {editMode ? "Cancel" : "Edit"}
+                        </Button>
+                      )}
+                      <Button 
+                        onClick={handleSubmitAttendance}
+                        disabled={saving || students.length === 0}
+                        className="flex items-center gap-2"
+                      >
+                        <Save className="h-4 w-4" />
+                        {saving ? "Saving..." : "Save Attendance"}
+                      </Button>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>
