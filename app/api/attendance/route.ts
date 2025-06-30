@@ -11,7 +11,7 @@ type AttendanceEntry = {
 // Decode session token from cookies
 function getSessionUser(req: NextRequest) {
   try {
-    const cookieStore = cookies(); // FIX: correctly access cookie store
+    const cookieStore = await cookies();
     const sessionToken = cookieStore.get('session-token')?.value;
     if (!sessionToken) return null;
     const data = JSON.parse(Buffer.from(sessionToken, 'base64').toString('utf8'));
