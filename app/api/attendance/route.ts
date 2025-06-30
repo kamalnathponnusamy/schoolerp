@@ -1,101 +1,81 @@
-import { type NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { sql } from '@/lib/db';
-import { sendPushNotification } from '@/lib/notifications';
+import { NextRequest, NextResponse } from "next/server";
+import { sql } from "@/lib/db";
+import { sendPushNotification } from "@/lib/notifications";
 
-// Utility to extract session user from cookie
+// Utility to decode session
 function getSessionUser(req: NextRequest) {
   try {
-    const sessionToken = cookies().get('session-token')?.value;
+    const sessionToken = req.cookies.get("session-token")?.value;
     if (!sessionToken) return null;
-    const data = JSON.parse(Buffer.from(sessionToken, 'base64').toString('utf8'));
-    return data; // e.g., { userId, role, username, full_name }
+    const data = JSON.parse(Buffer.from(sessionToken, "base64").toString("utf8"));
+    return data; // e.g., { userId, role, username }
   } catch {
     return null;
   }
 }
 
-// Handle GET: fetch attendance records
-export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const classId = searchParams.get("class_id");
+// === GET Handler ===
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const class_id = searchParams.get("class_id");
   const date = searchParams.get("date");
 
-  if (!classId || !date) {
-    return NextResponse.json(
-      { error: "class_id and date are required" },
-      { status: 400 }
-    );
+  if (!class_id || !date) {
+    return NextResponse.json({ error: "Missing class_id or date" }, { status: 400 });
   }
 
   try {
-    const attendance = await sql(`
-      SELECT 
-        a.id,
-        a.student_id,
-        u.full_name AS student_name,
-        a.status,
-        a.date
-      FROM attendance a
-      JOIN students s ON a.student_id = s.id
-      JOIN users u ON s.user_id = u.id
-      WHERE s.class_id = ? AND a.date = ?
-      ORDER BY u.full_name
-    `, [classId, date]);
+    const records = await sql<any>(
+      `SELECT student_id, status FROM attendance WHERE class_id = ? AND date = ?`,
+      [class_id, date]
+    );
 
-    return NextResponse.json({ attendance });
-  } catch (error) {
-    console.error("❌ Error in GET /api/attendance:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json({ attendance: records });
+  } catch (err) {
+    console.error("GET attendance error:", err);
+    return NextResponse.json({ error: "Failed to fetch attendance" }, { status: 500 });
   }
 }
 
-// Handle POST: submit attendance
-export async function POST(request: NextRequest) {
-  const user = getSessionUser(request);
-  if (!user || user.role !== 'teacher') {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
-  }
-
-  const body = await request.json();
-  const { class_id, date, attendance } = body;
-
-  if (!class_id || !date || !Array.isArray(attendance)) {
-    return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
+// === POST Handler ===
+export async function POST(req: NextRequest) {
+  const user = getSessionUser(req);
+  if (!user || user.role !== "teacher") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   try {
-    // 1. Save attendance
+    const { class_id, date, attendance } = await req.json();
+
+    if (!class_id || !date || !Array.isArray(attendance)) {
+      return NextResponse.json({ error: "Invalid data" }, { status: 400 });
+    }
+
+    // Save or update attendance
     await Promise.all(
-      attendance.map((entry) =>
+      attendance.map((entry: { student_id: string; status: "present" | "absent" }) =>
         sql(
-          `INSERT INTO attendance (class_id, student_id, date, status, updated_at, marked_by)
-           VALUES (?, ?, ?, ?, NOW(), ?)
-           ON DUPLICATE KEY UPDATE status = ?, updated_at = NOW(), marked_by = ?`,
-          [class_id, entry.student_id, date, entry.status, user.userId, entry.status, user.userId]
+          `INSERT INTO attendance (class_id, student_id, date, status, updated_at)
+           VALUES (?, ?, ?, ?, NOW())
+           ON DUPLICATE KEY UPDATE status = ?, updated_at = NOW()`,
+          [class_id, entry.student_id, date, entry.status, entry.status]
         )
       )
     );
 
-    // 2. Get class info
-    const [classResult] = await sql(
+    // Get class info
+    const [classInfo] = await sql<{ class_name: string; section: string }>(
       `SELECT class_name, section FROM classes WHERE id = ? LIMIT 1`,
       [class_id]
     );
-    const classInfo = classResult
-      ? `${classResult.class_name}-${classResult.section}`
-      : 'your class';
+    const className = classInfo ? `${classInfo.class_name}-${classInfo.section}` : "class";
 
-    // 3. Get absent students
-    const absentList = attendance.filter((a) => a.status === 'absent');
-    if (absentList.length === 0) {
-      return NextResponse.json({ success: true, message: 'No absentees today' });
-    }
+    // Notify absent students
+    const absentees = attendance.filter((s) => s.status === "absent");
 
-    // 4. Get student names & tokens
-    const absentTokens = await Promise.all(
-      absentList.map(async (entry) => {
-        const [studentRow] = await sql(
+    if (absentees.length > 0) {
+      for (const entry of absentees) {
+        const [student] = await sql<{ full_name: string; user_id: number }>(
           `SELECT u.full_name, s.user_id
            FROM students s
            JOIN users u ON s.user_id = u.id
@@ -103,60 +83,56 @@ export async function POST(request: NextRequest) {
           [entry.student_id]
         );
 
-        const [tokenRow] = await sql(
+        const [tokenRow] = await sql<{ token: string }>(
           `SELECT token FROM push_tokens WHERE user_id = ? AND role = 'student' LIMIT 1`,
-          [studentRow?.user_id]
+          [student?.user_id]
         );
 
-        return {
-          full_name: studentRow?.full_name || 'Student',
-          token: tokenRow?.token || null,
-        };
-      })
-    );
+        if (tokenRow?.token) {
+          await sendPushNotification({
+            to: tokenRow.token,
+            title: "Absent Notice",
+            body: `${student?.full_name} marked absent on ${date} for ${className}`,
+          });
+        }
+      }
 
-    // 5. Notify absent students
-    await Promise.all(
-      absentTokens.map(({ token, full_name }) => {
-        if (!token) return;
-        return sendPushNotification({
-          to: token,
-          title: 'Absent Notice',
-          body: `${full_name}, you were marked absent on ${date} for ${classInfo}.`,
-        });
-      })
-    );
+      // Notify teacher
+      const absentNames = absentees.map(async (entry) => {
+        const [s] = await sql<{ full_name: string; user_id: number }>(
+          `SELECT u.full_name, s.user_id
+           FROM students s
+           JOIN users u ON s.user_id = u.id
+           WHERE s.id = ? LIMIT 1`,
+          [entry.student_id]
+        );
+        return s?.full_name;
+      });
 
-    // 6. Get teacher push tokens
-    const result = await sql(
-      `SELECT DISTINCT pt.token
-       FROM class_teachers ct
-       JOIN push_tokens pt ON ct.teacher_id = pt.user_id
-       WHERE ct.class_id = ? AND pt.role = 'teacher'`,
-      [class_id]
-    );
+      const resolvedNames = (await Promise.all(absentNames)).filter(Boolean).join(", ");
 
-    const teacherRows = Array.isArray(result) ? result : [];
+      const teacherTokens = await sql<{ token: string }>(
+        `SELECT DISTINCT pt.token
+         FROM class_teachers ct
+         JOIN push_tokens pt ON ct.teacher_id = pt.user_id
+         WHERE ct.class_id = ? AND pt.role = 'teacher'`,
+        [class_id]
+      );
 
-    // 7. Notify teachers
-    const absentNames = absentTokens.map((s) => s.full_name).join(', ');
-    const teacherNotice = `Absent on ${date} in ${classInfo}: ${absentNames}`;
-
-    await Promise.all(
-      teacherRows
-        .filter((row) => !!row.token)
-        .map((row) =>
+      await Promise.all(
+        teacherTokens.map((t) =>
           sendPushNotification({
-            to: row.token,
-            title: 'Attendance Update',
-            body: teacherNotice,
+            to: t.token,
+            title: "Attendance Update",
+            body: `Absent on ${date} in ${className}: ${resolvedNames}`,
           })
         )
-    );
+      );
+    }
 
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error('❌ Error in POST /api/attendance:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ success: true, message: "Attendance saved" });
+  } catch (err) {
+    console.error("POST attendance error:", err);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
