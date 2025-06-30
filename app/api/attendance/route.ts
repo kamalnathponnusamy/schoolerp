@@ -11,7 +11,7 @@ type AttendanceEntry = {
 // ✅ async function for environments where cookies() returns a Promise
 async function getSessionUser(req: NextRequest) {
   try {
-    const cookieStore = await cookies(); // ✅ await if cookies() returns a Promise
+    const cookieStore = cookies(); // ✅ await if cookies() returns a Promise
     const sessionToken = cookieStore.get('session-token')?.value;
     if (!sessionToken) return null;
 
