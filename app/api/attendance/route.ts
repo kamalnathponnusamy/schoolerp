@@ -8,14 +8,17 @@ type AttendanceEntry = {
   status: 'present' | 'absent';
 };
 
-// Decode session token from cookies
+// ✅ Correct non-async cookie reader for app/api
 function getSessionUser(req: NextRequest) {
   try {
-    const cookieStore = await cookies();
+    const cookieStore = cookies(); // cookies() is synchronous here
     const sessionToken = cookieStore.get('session-token')?.value;
     if (!sessionToken) return null;
-    const data = JSON.parse(Buffer.from(sessionToken, 'base64').toString('utf8'));
-    return data; // { userId, role, username, etc. }
+
+    const data = JSON.parse(
+      Buffer.from(sessionToken, 'base64').toString('utf8')
+    );
+    return data; // e.g., { userId, role, username }
   } catch {
     return null;
   }
@@ -66,7 +69,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, message: 'No absentees today' });
     }
 
-    // 4. Get student names and tokens
+    // 4. Get absent student names and tokens
     const absentTokens = await Promise.all(
       absentList.map(async (entry) => {
         const [studentRow] = await sql(
@@ -110,10 +113,10 @@ export async function POST(request: NextRequest) {
       [class_id]
     );
 
+    // 7. Notify teachers about absentees
     const absentNames = absentTokens.map((s) => s.full_name).join(', ');
     const teacherNotice = `Absent on ${date} in ${classInfo}: ${absentNames}`;
 
-    // 7. Notify teachers
     await Promise.all(
       teacherRows
         .filter((row: any) => !!row.token)
