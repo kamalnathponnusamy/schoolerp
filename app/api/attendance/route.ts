@@ -8,10 +8,10 @@ type AttendanceEntry = {
   status: 'present' | 'absent';
 };
 
-// ✅ Correct non-async cookie reader for app/api
-function getSessionUser(req: NextRequest) {
+// ✅ async function for environments where cookies() returns a Promise
+async function getSessionUser(req: NextRequest) {
   try {
-    const cookieStore = cookies(); // cookies() is synchronous here
+    const cookieStore = await cookies(); // ✅ await if cookies() returns a Promise
     const sessionToken = cookieStore.get('session-token')?.value;
     if (!sessionToken) return null;
 
@@ -25,7 +25,7 @@ function getSessionUser(req: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const user = getSessionUser(request);
+  const user = await getSessionUser(request); // ✅ await required here
   if (!user || user.role !== 'teacher') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // 1. Save attendance
+    // Save attendance
     await Promise.all(
       attendance.map((entry) =>
         sql(
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
       )
     );
 
-    // 2. Get class name
+    // Get class name
     const [classResult] = await sql(
       `SELECT class_name, section FROM classes WHERE id = ? LIMIT 1`,
       [class_id]
@@ -63,13 +63,13 @@ export async function POST(request: NextRequest) {
       ? `${classResult.class_name}-${classResult.section}`
       : 'your class';
 
-    // 3. Filter absentees
+    // Filter absentees
     const absentList = attendance.filter((a) => a.status === 'absent');
     if (absentList.length === 0) {
       return NextResponse.json({ success: true, message: 'No absentees today' });
     }
 
-    // 4. Get absent student names and tokens
+    // Get student names and tokens
     const absentTokens = await Promise.all(
       absentList.map(async (entry) => {
         const [studentRow] = await sql(
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
       })
     );
 
-    // 5. Notify absent students
+    // Notify students
     await Promise.all(
       absentTokens.map(({ token, full_name }) => {
         if (!token) return;
@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
       })
     );
 
-    // 6. Get teacher tokens for this class
+    // Notify teachers
     const teacherRows = await sql(
       `SELECT DISTINCT pt.token
        FROM class_teachers ct
@@ -113,7 +113,6 @@ export async function POST(request: NextRequest) {
       [class_id]
     );
 
-    // 7. Notify teachers about absentees
     const absentNames = absentTokens.map((s) => s.full_name).join(', ');
     const teacherNotice = `Absent on ${date} in ${classInfo}: ${absentNames}`;
 
