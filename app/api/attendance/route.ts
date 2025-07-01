@@ -20,7 +20,6 @@ export async function POST(req: NextRequest) {
         [class_id, student.student_id, date, student.status]
       );
 
-      // Notify student if marked absent
       if (student.status === 'absent') {
         const [tokenRow] = await sql(
           'SELECT token FROM push_tokens WHERE user_id = ? AND role = ? LIMIT 1',
@@ -39,7 +38,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Notify the teacher
     const [teacherRow] = await sql(
       'SELECT token FROM push_tokens WHERE user_id = ? AND role = ? LIMIT 1',
       [teacher_id, 'teacher']
@@ -61,4 +59,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
- 
+
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const class_id = searchParams.get('class_id');
+  const date = searchParams.get('date');
+
+  if (!class_id || !date) {
+    return NextResponse.json({ error: 'Missing class_id or date' }, { status: 400 });
+  }
+
+  try {
+    const [results] = await sql(
+      'SELECT student_id, status FROM attendance WHERE class_id = ? AND date = ?',
+      [class_id, date]
+    );
+
+    return NextResponse.json({ attendance: results || [] });
+  } catch (error) {
+    console.error('Error in attendance GET route:', error);
+    return NextResponse.json({ error: 'Failed to fetch attendance' }, { status: 500 });
+  }
+}
