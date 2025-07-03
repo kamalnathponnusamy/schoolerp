@@ -10,13 +10,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
-import { CalendarIcon, Upload, Camera, CheckCircle, XCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { CalendarIcon, Upload, Camera, CheckCircle, XCircle, AlertCircle, Loader2, BookMarked, CheckCircle2, Clock, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { BookMarked, CheckCircle2, Clock } from "lucide-react";
 
 interface Student {
   id: number;
@@ -523,8 +522,61 @@ const TeacherDashboardContent: React.FC<TeacherDashboardContentProps> = () => {
     return null;
   }
 
+  // Calculate statistics
+  const totalAssignedClasses = classes.length;
+  const totalStudents = classes.reduce((sum, cls) => sum + (cls.student_count || 0), 0);
+  const todaysClasses = todaysTimetable.length;
+  const pendingHomework = homework.filter(hw => hw.status === 'pending').length;
+
   return (
     <div className="container mx-auto p-4">
+      {/* Statistics Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 mb-6">
+        <Card>
+          <CardContent className="flex items-center gap-4 p-6">
+            <div className="w-12 h-12 rounded-lg flex items-center justify-center bg-blue-500">
+              <BookMarked className="w-7 h-7 text-white" />
+            </div>
+            <div>
+              <div className="text-2xl font-bold">{totalAssignedClasses}</div>
+              <div className="text-sm text-muted-foreground">Assigned Classes</div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="flex items-center gap-4 p-6">
+            <div className="w-12 h-12 rounded-lg flex items-center justify-center bg-green-500">
+              <Users className="w-7 h-7 text-white" />
+            </div>
+            <div>
+              <div className="text-2xl font-bold">{totalStudents}</div>
+              <div className="text-sm text-muted-foreground">Total Students</div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="flex items-center gap-4 p-6">
+            <div className="w-12 h-12 rounded-lg flex items-center justify-center bg-purple-500">
+              <Clock className="w-7 h-7 text-white" />
+            </div>
+            <div>
+              <div className="text-2xl font-bold">{todaysClasses}</div>
+              <div className="text-sm text-muted-foreground">Today's Classes</div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="flex items-center gap-4 p-6">
+            <div className="w-12 h-12 rounded-lg flex items-center justify-center bg-orange-500">
+              <CheckCircle2 className="w-7 h-7 text-white" />
+            </div>
+            <div>
+              <div className="text-2xl font-bold">{pendingHomework}</div>
+              <div className="text-sm text-muted-foreground">Pending Homework</div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
       <div className="grid gap-6">
         {/* Assigned Classes/Subjects */}
         <Card>
