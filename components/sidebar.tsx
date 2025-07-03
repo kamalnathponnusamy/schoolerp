@@ -249,48 +249,65 @@ export function Sidebar() {
             </div>
           )}
 
-          {/* Navigation */}
-          <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
-            {filteredNavigation.map((item) => {
-              const isActive = pathname === item.href
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={cn(
-                    "group flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 hover:scale-105",
-                    isActive
-                      ? `${item.bgColor} ${item.color} shadow-md border border-opacity-20`
-                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
-                  )}
-                  onClick={() => setIsOpen(false)}
-                >
-                  <div
+          {/* Navigation (scrollable) */}
+          <div className="flex-1 overflow-y-auto">
+            <nav className="px-4 py-6 space-y-2">
+              {filteredNavigation.map((item) => {
+                const isActive = pathname === item.href
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
                     className={cn(
-                      "flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-200",
-                      isActive ? "bg-white shadow-sm" : "group-hover:bg-white group-hover:shadow-sm",
+                      "group flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 hover:scale-105",
+                      isActive
+                        ? `${item.bgColor} ${item.color} shadow-md border border-opacity-20`
+                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
                     )}
+                    onClick={() => setIsOpen(false)}
                   >
-                    <item.icon
+                    <div
                       className={cn(
-                        "h-4 w-4 transition-all duration-200",
-                        isActive ? item.color : "text-gray-500 group-hover:text-gray-700",
+                        "flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-200",
+                        isActive ? "bg-white shadow-sm" : "group-hover:bg-white group-hover:shadow-sm",
                       )}
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <div className="font-semibold">{item.name}</div>
-                    <div className="text-xs text-gray-500 group-hover:text-gray-600">{item.description}</div>
-                  </div>
-                  {isActive && (
-                    <div className="w-2 h-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full"></div>
-                  )}
-                </Link>
-              )
-            })}
-          </nav>
+                    >
+                      <item.icon
+                        className={cn(
+                          "h-4 w-4 transition-all duration-200",
+                          isActive ? item.color : "text-gray-500 group-hover:text-gray-700",
+                        )}
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-semibold">{item.name}</div>
+                      <div className="text-xs text-gray-500 group-hover:text-gray-600">{item.description}</div>
+                    </div>
+                    {isActive && (
+                      <div className="w-2 h-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full"></div>
+                    )}
+                  </Link>
+                )
+              })}
+            </nav>
+          </div>
 
-          {/* Footer */}
+          {/* Logout Button (fixed above footer) */}
+          <div className="px-6 pb-4">
+            <Button
+              variant="outline"
+              className="w-full justify-center"
+              onClick={() => {
+                localStorage.removeItem("user");
+                document.cookie = "session-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+                window.location.href = "/";
+              }}
+            >
+              Logout
+            </Button>
+          </div>
+
+          {/* Footer (always at bottom) */}
           <div className="px-6 py-4 border-t border-gray-100 bg-gradient-to-r from-gray-50 to-blue-50">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
