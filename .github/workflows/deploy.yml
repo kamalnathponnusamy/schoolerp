@@ -1,4 +1,4 @@
-name: Auto Deploy with Rollback to Docker Server
+name: Auto Deploy to Docker Server with Rollback
 
 on:
   push:
@@ -20,43 +20,60 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -H 165.232.188.143 >> ~/.ssh/known_hosts
 
-      - name: Deploy to Docker Server with Rollback
+      - name: Deploy to Docker Server
         run: |
           ssh root@165.232.188.143 << 'EOF'
             set -e
 
-            echo "===> STEP 1: BACKUP current container and image"
-            docker ps -q --filter "name=schoolerp_app" | grep . && docker commit schoolerp_app schoolerp_backup:latest || echo "No running container to backup"
+            echo "==> BACKUP: Commit current container as image"
+            CONTAINER_ID=$(docker ps -q --filter name=schoolerp_app)
+            if [ -n "$CONTAINER_ID" ]; then
+              docker commit $CONTAINER_ID schoolerp_backup:latest
+              echo "Backup complete"
+            else
+              echo "No running container to backup"
+            fi
 
-            echo "===> STEP 2: Entering project directory"
+            echo "==> DEPLOY: Entering project directory"
             cd /root/docker-stacks/schoolerp
 
-            echo "===> STEP 3: Pulling latest code"
+            echo "==> GIT: Pulling latest code"
             git config user.email 'sales@britexcbe.com'
             git config user.name 'Vkysrn-ux'
             git config pull.rebase false
             git pull origin main
 
-            echo "===> STEP 4: Stopping existing containers"
+            echo "==> DOCKER: Stopping and pruning"
             docker-compose down --remove-orphans || true
-
-            echo "===> STEP 5: Pruning old Docker resources"
             docker system prune -af || true
             docker volume prune -f || true
 
-            echo "===> STEP 6: Building new image"
+            echo "==> DOCKER: Building new image"
             docker-compose build --no-cache
 
-            echo "===> STEP 7: Starting new containers"
+            echo "==> DOCKER: Starting new container"
             docker-compose up -d
 
-            echo "===> STEP 8: Checking health endpoint"
-            sleep 10
-            curl -f http://localhost:3000/health || (echo "Deployment failed, rolling back..." && docker rm -f $(docker ps -aq --filter name=schoolerp_app) && docker run -d --name schoolerp_app -p 3000:3000 schoolerp_backup:latest && exit 1)
+            echo "==> HEALTH CHECK: Waiting for app to start..."
+            for i in {1..5}; do
+              sleep 5
+              if curl -fs http://localhost:3000/health; then
+                echo "✅ App is healthy"
+                exit 0
+              else
+                echo "Retry $i/5 failed..."
+              fi
+            done
 
-            echo "✅ Deployment Successful"
+            echo "❌ Deployment failed. Rolling back..."
+
+            echo "==> CLEANUP: Stop failed container"
+            ROLLBACK_CONTAINER=$(docker ps -aq --filter name=schoolerp_app)
+            if [ -n "$ROLLBACK_CONTAINER" ]; then
+              docker rm -f $ROLLBACK_CONTAINER
+            fi
+
+            echo "==> ROLLBACK: Starting last known good image"
+            docker run -d --name schoolerp_app -p 3000:3000 schoolerp_backup:latest || echo "⚠️ Rollback failed - no backup found"
+            exit 1
           EOF
-
-      - name: On Failure - Show error log
-        if: failure()
-        run: echo "❌ Deployment failed. Last working container restored. Check logs on the server."
