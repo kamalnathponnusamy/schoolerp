@@ -1,80 +1,71 @@
-name: Auto Deploy to Docker Server with Rollback
+name: Auto Deploy to Docker Server
 
 on:
-  push:
-    branches:
-      - main
+
+  push:
+
+    branches:
+
+      - main
+
+
 
 jobs:
-  deploy:
-    runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+  deploy:
 
-      - name: Set up SSH
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.DOCKER_DEPLOY_KEY }}" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H 165.232.188.143 >> ~/.ssh/known_hosts
+    runs-on: ubuntu-latest
 
-      - name: Deploy to Docker Server
-        run: |
-          ssh root@165.232.188.143 << 'EOF'
-            set -e
 
-            echo "==> BACKUP: Commit current container as image"
-            CONTAINER_ID=$(docker ps -q --filter name=schoolerp)
-            if [ -n "$CONTAINER_ID" ]; then
-              docker commit $CONTAINER_ID schoolerp_backup:latest
-              echo "✅ Backup complete"
-            else
-              echo "⚠️ No running container to backup"
-            fi
 
-            echo "==> DEPLOY: Entering project directory"
-            cd /root/docker-stacks/schoolerp
+    steps:
 
-            echo "==> GIT: Pulling latest code"
-            git config user.email 'sales@britexcbe.com'
-            git config user.name 'Vkysrn-ux'
-            git config pull.rebase false
-            git pull origin main
+      - name: Checkout code
 
-            echo "==> DOCKER: Stopping and pruning"
-            docker-compose down --remove-orphans || true
-            docker system prune -af || true
-            docker volume prune -f || true
+        uses: actions/checkout@v4
 
-            echo "==> DOCKER: Building new image"
-            docker-compose build --no-cache
 
-            echo "==> DOCKER: Starting new container"
-            docker-compose up -d
 
-            echo "==> HEALTH CHECK: Waiting for app to become healthy..."
-            for i in {1..5}; do
-              sleep 5
-              if docker exec schoolerp curl -fs http://localhost:3000/health; then
-                echo "✅ App is healthy"
-                exit 0
-              else
-                echo "❌ Retry $i/5 failed..."
-              fi
-            done
+      - name: Set up SSH
 
-            echo "❌ Deployment failed. Rolling back..."
+        run: |
 
-            echo "==> CLEANUP: Stop failed container"
-            ROLLBACK_CONTAINER=$(docker ps -aq --filter name=schoolerp)
-            if [ -n "$ROLLBACK_CONTAINER" ]; then
-              docker rm -f $ROLLBACK_CONTAINER
-            fi
+          mkdir -p ~/.ssh
 
-            echo "==> ROLLBACK: Restarting backup image"
-            docker run -d --name schoolerp -p 3010:3000 schoolerp_backup:latest || echo "⚠️ Rollback failed - no backup image found"
+          echo "${{ secrets.DOCKER_DEPLOY_KEY }}" > ~/.ssh/id_ed25519
 
-            exit 1
-          EOF
+          chmod 600 ~/.ssh/id_ed25519
+
+          ssh-keyscan -H 165.232.188.143 >> ~/.ssh/known_hosts
+
+
+
+      - name: Deploy to Server
+
+        run: |
+
+          ssh root@165.232.188.143 "
+
+            echo 'WORKFLOW RUNNING IN /root/docker-stacks/schoolerp'
+
+            cd /root/docker-stacks/schoolerp &&
+
+            docker-compose down --remove-orphans || true &&
+
+            docker system prune -af || true &&
+
+            docker volume prune -f || true &&
+
+            git config user.email 'sales@britexcbe.com' &&
+
+            git config user.name 'Vkysrn-ux' &&
+
+            git config pull.rebase false &&
+
+            git pull origin main &&
+
+            docker-compose build --no-cache &&
+
+            docker-compose up -d
+
+          "
