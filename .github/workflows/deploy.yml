@@ -1,71 +1,36 @@
 name: Auto Deploy to Docker Server
-
 on:
-
-  push:
-
-    branches:
-
-      - main
-
-
+  push:
+    branches:
+      - main
 
 jobs:
+  deploy:
+    runs-on: ubuntu-latest
 
-  deploy:
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    runs-on: ubuntu-latest
+      - name: Set up SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DOCKER_DEPLOY_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H 165.232.188.143 >> ~/.ssh/known_hosts
 
-
-
-    steps:
-
-      - name: Checkout code
-
-        uses: actions/checkout@v4
-
-
-
-      - name: Set up SSH
-
-        run: |
-
-          mkdir -p ~/.ssh
-
-          echo "${{ secrets.DOCKER_DEPLOY_KEY }}" > ~/.ssh/id_ed25519
-
-          chmod 600 ~/.ssh/id_ed25519
-
-          ssh-keyscan -H 165.232.188.143 >> ~/.ssh/known_hosts
-
-
-
-      - name: Deploy to Server
-
-        run: |
-
-          ssh root@165.232.188.143 "
-
-            echo 'WORKFLOW RUNNING IN /root/docker-stacks/schoolerp'
-
-            cd /root/docker-stacks/schoolerp &&
-
-            docker-compose down --remove-orphans || true &&
-
-            docker system prune -af || true &&
-
-            docker volume prune -f || true &&
-
-            git config user.email 'sales@britexcbe.com' &&
-
-            git config user.name 'Vkysrn-ux' &&
-
-            git config pull.rebase false &&
-
-            git pull origin main &&
-
-            docker-compose build --no-cache &&
-
-            docker-compose up -d
-
-          "
+      - name: Deploy to Server
+        run: |
+          ssh root@165.232.188.143 "
+            echo 'WORKFLOW RUNNING IN /root/docker-stacks/schoolerp'
+            cd /root/docker-stacks/schoolerp &&
+            docker-compose down --remove-orphans || true &&
+            docker system prune -af || true &&
+            docker volume prune -f || true &&
+            git config user.email 'sales@britexcbe.com' &&
+            git config user.name 'Vkysrn-ux' &&
+            git config pull.rebase false &&
+            git pull origin main &&
+            docker-compose build --no-cache &&
+            docker-compose up -d
+          "
