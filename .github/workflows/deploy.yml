@@ -26,12 +26,12 @@ jobs:
             set -e
 
             echo "==> BACKUP: Commit current container as image"
-            CONTAINER_ID=$(docker ps -q --filter name=schoolerp_app)
+            CONTAINER_ID=$(docker ps -q --filter name=schoolerp)
             if [ -n "$CONTAINER_ID" ]; then
               docker commit $CONTAINER_ID schoolerp_backup:latest
-              echo "Backup complete"
+              echo "✅ Backup complete"
             else
-              echo "No running container to backup"
+              echo "⚠️ No running container to backup"
             fi
 
             echo "==> DEPLOY: Entering project directory"
@@ -54,26 +54,27 @@ jobs:
             echo "==> DOCKER: Starting new container"
             docker-compose up -d
 
-            echo "==> HEALTH CHECK: Waiting for app to start..."
+            echo "==> HEALTH CHECK: Waiting for app to become healthy..."
             for i in {1..5}; do
               sleep 5
-              if curl -fs http://localhost:3000/health; then
+              if docker exec schoolerp curl -fs http://localhost:3000/health; then
                 echo "✅ App is healthy"
                 exit 0
               else
-                echo "Retry $i/5 failed..."
+                echo "❌ Retry $i/5 failed..."
               fi
             done
 
             echo "❌ Deployment failed. Rolling back..."
 
             echo "==> CLEANUP: Stop failed container"
-            ROLLBACK_CONTAINER=$(docker ps -aq --filter name=schoolerp_app)
+            ROLLBACK_CONTAINER=$(docker ps -aq --filter name=schoolerp)
             if [ -n "$ROLLBACK_CONTAINER" ]; then
               docker rm -f $ROLLBACK_CONTAINER
             fi
 
-            echo "==> ROLLBACK: Starting last known good image"
-            docker run -d --name schoolerp_app -p 3000:3000 schoolerp_backup:latest || echo "⚠️ Rollback failed - no backup found"
+            echo "==> ROLLBACK: Restarting backup image"
+            docker run -d --name schoolerp -p 3010:3000 schoolerp_backup:latest || echo "⚠️ Rollback failed - no backup image found"
+
             exit 1
           EOF
