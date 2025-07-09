@@ -1,5 +1,4 @@
-name: Auto Deploy to Docker Server with Backup and Rollback
-
+name: Auto Deploy to Docker Server
 on:
   push:
     branches:
@@ -20,66 +19,18 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -H 165.232.188.143 >> ~/.ssh/known_hosts
 
-      - name: Deploy to Server with Rollback
+      - name: Deploy to Server
         run: |
-          ssh root@165.232.188.143 << 'EOF'
-            set -e
-
-            echo "==> Changing to project directory"
-            cd /root/docker-stacks/schoolerp
-
-            echo "==> Backing up current container (if exists)"
-            if docker ps -q -f name=schoolerp > /dev/null; then
-              docker commit schoolerp schoolerp_backup:latest
-              echo "✅ Backup image created: schoolerp_backup:latest"
-            else
-              echo "⚠️ No running container to backup"
-            fi
-
-            echo "==> Pulling latest code"
-            git config user.email 'sales@britexcbe.com'
-            git config user.name 'Vkysrn-ux'
-            git config pull.rebase false
-            git pull origin main
-
-            echo "==> Stopping and cleaning up containers"
-            docker-compose down --remove-orphans || true
-            docker system prune -af || true
-            docker volume prune -f || true
-
-            echo "==> Building and starting containers"
-            docker-compose build --no-cache
+          ssh root@165.232.188.143 "
+            echo 'WORKFLOW RUNNING IN /root/docker-stacks/schoolerp'
+            cd /root/docker-stacks/schoolerp &&
+            docker-compose down --remove-orphans || true &&
+            docker system prune -af || true &&
+            docker volume prune -f || true &&
+            git config user.email 'sales@britexcbe.com' &&
+            git config user.name 'Vkysrn-ux' &&
+            git config pull.rebase false &&
+            git pull origin main &&
+            docker-compose build --no-cache &&
             docker-compose up -d
-
-            echo "==> HEALTH CHECK: Verifying app inside container"
-            for i in {1..6}; do
-              sleep 5
-              if docker exec schoolerp curl -fs http://localhost:3000/health; then
-                echo "✅ App is healthy after retry $i"
-                exit 0
-              else
-                echo "⏳ Waiting... retry $i/6 failed"
-              fi
-            done
-
-            echo "❌ Health check failed after 6 retries. Rolling back..."
-
-            docker rm -f schoolerp || true
-
-            if docker image inspect schoolerp_backup:latest > /dev/null 2>&1; then
-              echo "🔁 Rolling back using backup image..."
-              docker run -d --name schoolerp --network traefik \
-                -l "traefik.enable=true" \
-                -l "traefik.http.routers.schoolerp.rule=Host(\`schoolerp.nh360fastag.com\`)" \
-                -l "traefik.http.routers.schoolerp.entrypoints=websecure" \
-                -l "traefik.http.routers.schoolerp.tls=true" \
-                -l "traefik.http.routers.schoolerp.tls.certresolver=letsencrypt" \
-                -l "traefik.http.services.schoolerp.loadbalancer.server.port=3000" \
-                schoolerp_backup:latest
-              echo "✅ Rolled back successfully"
-            else
-              echo "❌ Rollback failed — no backup image found"
-            fi
-
-            exit 1
-          EOF
+          "
